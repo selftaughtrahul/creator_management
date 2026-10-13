@@ -1,0 +1,48 @@
+{% extends "app/base.html" %}
+{% load humanize %}
+{% block title %}{{ item.title }} · Awisee{% endblock %}
+{% block page_heading %}Post{% endblock %}
+{% block content %}
+  <div class="page-head">
+    <div>
+      <div class="kicker">
+        <a href="{% url 'analytics:platform' account.platform %}">{{ meta.label }}</a>
+        <span>·</span>
+        <span>{{ item.content_type }}</span>
+        {% if account.is_sample %}<span class="badge-sample">Sample</span>{% else %}<span class="badge-live">Live</span>{% endif %}
+      </div>
+      <h2 class="serif mt-2" style="font-size:40px">{{ item.title }}</h2>
+      <p class="muted">{% if item.published_at %}Published {{ item.published_at|date:"d M Y, H:i" }}{% endif %}</p>
+    </div>
+    {% if item.url and not account.is_sample %}
+      <a class="btn-line" href="{{ item.url }}" rel="noreferrer">Open original</a>
+    {% endif %}
+  </div>
+  <section class="stat-grid">
+    <article class="stat"><span class="label">Views</span><strong>{{ item.views|intcomma }}</strong><em>{{ share }}% of saved {{ meta.label }} views</em></article>
+    <article class="stat"><span class="label">Likes</span><strong>{{ item.likes|intcomma }}</strong></article>
+    <article class="stat"><span class="label">Comments</span><strong>{{ item.comments|intcomma }}</strong></article>
+    <article class="stat"><span class="label">Shares</span><strong>{{ item.shares|intcomma }}</strong></article>
+  </section>
+  <section class="stat-grid">
+    <article class="stat"><span class="label">Saves</span><strong>{{ item.saves|intcomma }}</strong></article>
+    <article class="stat"><span class="label">Impressions</span><strong>{{ item.impressions|intcomma }}</strong></article>
+    <article class="stat"><span class="label">Engagement</span><strong>{{ item.engagement_rate }}%</strong><em>{{ item.reactions|intcomma }} reactions</em></article>
+    <article class="stat"><span class="label">Watch time</span><strong style="font-size:28px">{{ watch_label }}</strong></article>
+  </section>
+  <section class="detail-grid">
+    <article class="panel">
+      <h2>Caption</h2>
+      <p class="caption">{{ item.caption|default:"No caption stored." }}</p>
+    </article>
+    <article class="panel">
+      <h2>Reaction mix</h2>
+      {% if charts.mix %}
+        <div class="chart-box"><canvas id="contentMix"></canvas></div>
+        {{ charts.mix|json_script:"contentMix-spec" }}
+      {% else %}
+        <p class="muted">No reactions stored on this post.</p>
+      {% endif %}
+    </article>
+  </section>
+{% endblock %}

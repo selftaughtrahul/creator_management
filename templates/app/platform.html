@@ -1,0 +1,100 @@
+{% extends "app/base.html" %}
+{% load humanize %}
+{% block title %}{{ meta.label }} · Awisee{% endblock %}
+{% block page_heading %}{{ meta.label }}{% endblock %}
+{% block content %}
+  {% if not account %}
+    <section class="panel empty">
+      <h2>{{ meta.label }} is not connected</h2>
+      <p>{{ meta.blurb }}</p>
+      <a class="btn-accent" href="{% url 'networks:connections' %}">Go to connections</a>
+    </section>
+  {% else %}
+    <div class="page-head">
+      <div>
+        <div class="kicker">
+          <i class="bi {{ meta.icon }}"></i>
+          {% if account.username %}{{ account.username }}{% endif %}
+          {% if account.is_sample %}<span class="badge-sample">Sample</span>{% else %}<span class="badge-live">Live</span>{% endif %}
+        </div>
+        <h2 class="serif mt-2 mb-0" style="font-size:36px">{{ account.display_name|default:meta.label }}</h2>
+        <p class="mt-2">{{ account.status_note }}</p>
+        {% if account.last_error %}<p class="error-text">{{ account.last_error }}</p>{% endif %}
+      </div>
+      <div class="actions">
+        {% if account.profile_url %}
+          <a class="btn-line" href="{{ account.profile_url }}" rel="noreferrer">Open profile</a>
+        {% endif %}
+        <form method="post" action="{% url 'networks:sync' account.platform %}">
+          {% csrf_token %}
+          <button class="btn-line" type="submit">Sync</button>
+        </form>
+      </div>
+    </div>
+    <section class="stat-grid">
+      <article class="stat"><span class="label">{{ meta.audience_label }}</span><strong>{{ snapshot.followers|default:0|intcomma }}</strong></article>
+      <article class="stat"><span class="label">Views</span><strong>{{ snapshot.views|default:0|intcomma }}</strong></article>
+      <article class="stat"><span class="label">Reach</span><strong>{{ snapshot.reach|default:0|intcomma }}</strong></article>
+      <article class="stat"><span class="label">Saved post rate</span><strong>{{ totals.rate }}%</strong><em>{{ totals.reactions|intcomma }} reactions on saved posts</em></article>
+    </section>
+    <section class="stat-grid">
+      <article class="stat"><span class="label">Following</span><strong>{{ snapshot.following|default:0|intcomma }}</strong></article>
+      <article class="stat"><span class="label">Likes</span><strong>{{ snapshot.likes|default:0|intcomma }}</strong></article>
+      <article class="stat"><span class="label">Comments</span><strong>{{ snapshot.comments|default:0|intcomma }}</strong></article>
+      <article class="stat"><span class="label">Shares</span><strong>{{ snapshot.shares|default:0|intcomma }}</strong></article>
+    </section>
+    <section class="two-col">
+      <article class="panel">
+        <h2>Audience trend</h2>
+        {% if charts.audience %}
+          <div class="chart-box"><canvas id="platformAudience"></canvas></div>
+          {{ charts.audience|json_script:"platformAudience-spec" }}
+        {% else %}
+          <p class="muted">One snapshot is saved. The line appears after the next sync, or immediately for sample data.</p>
+        {% endif %}
+      </article>
+      <article class="panel">
+        <h2>Top saved posts</h2>
+        {% if charts.posts %}
+          <div class="chart-box"><canvas id="platformPosts"></canvas></div>
+          {{ charts.posts|json_script:"platformPosts-spec" }}
+        {% else %}
+          <p class="muted">No view counts on the saved posts yet.</p>
+        {% endif %}
+      </article>
+    </section>
+    <section class="panel">
+      <h2>Posts</h2>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr><th>Title</th><th>Type</th><th>When</th><th>Views</th><th>Likes</th><th>Comments</th><th>Shares</th><th>Rate</th></tr>
+          </thead>
+          <tbody>
+            {% for item in page %}
+              <tr>
+                <td><a href="{{ item.get_absolute_url }}">{{ item.title }}</a></td>
+                <td>{{ item.content_type }}</td>
+                <td>{% if item.published_at %}{{ item.published_at|date:"d M Y" }}{% else %}—{% endif %}</td>
+                <td>{{ item.views|intcomma }}</td>
+                <td>{{ item.likes|intcomma }}</td>
+                <td>{{ item.comments|intcomma }}</td>
+                <td>{{ item.shares|intcomma }}</td>
+                <td>{{ item.engagement_rate }}%</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="8">No posts saved for this account.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if page.paginator.num_pages > 1 %}
+        <div class="pager">
+          {% if page.has_previous %}<a class="btn-line" href="?page={{ page.previous_page_number }}">Previous</a>{% endif %}
+          <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+          {% if page.has_next %}<a class="btn-line" href="?page={{ page.next_page_number }}">Next</a>{% endif %}
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+{% endblock %}

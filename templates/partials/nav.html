@@ -1,0 +1,27 @@
+<a class="side-brand" href="{% url 'analytics:dashboard' %}">
+  <span class="brand-mark">A</span>
+  <span>Awisee</span>
+</a>
+<nav class="side-links">
+  <a class="{% if request.resolver_match.view_name == 'analytics:dashboard' %}is-active{% endif %}" href="{% url 'analytics:dashboard' %}">
+    <i class="bi bi-grid-1x2"></i> Overview
+  </a>
+  <a class="{% if request.resolver_match.view_name == 'networks:connections' %}is-active{% endif %}" href="{% url 'networks:connections' %}">
+    <i class="bi bi-plug"></i> Connections
+  </a>
+  <div class="side-label">Networks</div>
+  {% for key, meta in platform_catalog.items %}
+    <a class="{% if request.resolver_match.kwargs.platform == key %}is-active{% endif %}" href="{% url 'analytics:platform' key %}">
+      <i class="bi {{ meta.icon }}"></i> {{ meta.label }}
+    </a>
+  {% endfor %}
+</nav>
+<div class="side-foot">
+  <a class="{% if request.resolver_match.view_name == 'accounts:profile' %}is-active{% endif %}" href="{% url 'accounts:profile' %}">
+    <i class="bi bi-person"></i> Profile
+  </a>
+  <form method="post" action="{% url 'account_logout' %}">
+    {% csrf_token %}
+    <button type="submit"><i class="bi bi-box-arrow-right"></i> Log out</button>
+  </form>
+</div>

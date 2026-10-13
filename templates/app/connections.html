@@ -1,0 +1,62 @@
+{% extends "app/base.html" %}
+{% load humanize %}
+{% block title %}Connections · Awisee{% endblock %}
+{% block page_heading %}Connections{% endblock %}
+{% block content %}
+  <div class="page-head">
+    <p>Authorize a live account, or load sample data. Tokens stay in this app’s database and are used only to refresh the numbers you asked for.</p>
+  </div>
+  <section class="card-grid">
+    {% for card in cards %}
+      <article class="platform-card">
+        <header>
+          <div>
+            <div class="kicker"><i class="bi {{ card.meta.icon }}"></i> {{ card.meta.label }}</div>
+            <h2>
+              {% if card.account %}
+                {{ card.account.display_name|default:card.meta.label }}
+              {% else %}
+                Not connected
+              {% endif %}
+            </h2>
+          </div>
+          {% if card.account %}
+            {% if card.account.is_sample %}<span class="badge-sample">Sample</span>{% else %}<span class="badge-live">Live</span>{% endif %}
+          {% endif %}
+        </header>
+        <p>{{ card.meta.blurb }}</p>
+        {% if card.account %}
+          <p class="muted">
+            {% if card.account.username %}{{ card.account.username }} · {% endif %}
+            {% if card.account.last_synced_at %}Synced {{ card.account.last_synced_at|naturaltime }}{% endif %}
+          </p>
+          {% if card.account.status_note %}<p class="muted">{{ card.account.status_note }}</p>{% endif %}
+          {% if card.account.last_error %}<p class="error-text">{{ card.account.last_error }}</p>{% endif %}
+        {% elif not card.ready %}
+          <p class="muted">Live connect needs API keys in <code>.env</code>. Sample data works without them.</p>
+        {% endif %}
+        <div class="actions">
+          {% if card.ready and not card.account or card.ready and card.account.is_sample %}
+            <a class="btn-accent" href="{% url 'networks:start' card.key %}">Connect {{ card.meta.label }}</a>
+          {% elif card.ready and card.account %}
+            <a class="btn-line" href="{% url 'networks:start' card.key %}">Reconnect</a>
+          {% endif %}
+          {% if not card.account %}
+            <form method="post" action="{% url 'networks:sample' card.key %}">
+              {% csrf_token %}
+              <button class="btn-line" type="submit">Load sample data</button>
+            </form>
+          {% endif %}
+          {% if card.account %}
+            <form method="post" action="{% url 'networks:sync' card.key %}">
+              {% csrf_token %}
+              <button class="btn-line" type="submit">Sync</button>
+            </form>
+            <a class="btn-line" href="{% url 'analytics:platform' card.key %}">Analytics</a>
+            <a class="btn-line" href="{% url 'networks:disconnect' card.key %}">Disconnect</a>
+          {% endif %}
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}

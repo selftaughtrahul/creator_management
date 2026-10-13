@@ -1,0 +1,16 @@
+{% extends "app/base.html" %}
+{% block title %}Disconnect {{ meta.label }} · Awisee{% endblock %}
+{% block page_heading %}Disconnect{% endblock %}
+{% block content %}
+  <section class="panel" style="max-width:640px">
+    <h2>Disconnect {{ meta.label }}?</h2>
+    <p>{{ account.display_name|default:meta.label }} and the snapshots and posts saved for it will be removed from this database. You can connect again later.</p>
+    <div class="actions">
+      <form method="post">
+        {% csrf_token %}
+        <button class="btn-danger" type="submit">Disconnect and delete saved data</button>
+      </form>
+      <a class="btn-line" href="{% url 'networks:connections' %}">Keep it</a>
+    </div>
+  </section>
+{% endblock %}

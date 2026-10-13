@@ -1,0 +1,10 @@
+{% extends "allauth/layouts/base.html" %}
+{% block head_title %}Log out · Awisee{% endblock %}
+{% block content %}
+  <h1>Log out</h1>
+  <p>You can sign back in with Google or your verified email.</p>
+  <form method="post" action="{% url 'account_logout' %}">
+    {% csrf_token %}
+    <button type="submit">Log out</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "allauth/layouts/base.html" %}
+{% block head_title %}Confirm email · Awisee{% endblock %}
+{% block content %}
+  <h1>Confirm email</h1>
+  {% if confirmation %}
+    {% if can_confirm %}
+      <p>Confirm <strong>{{ confirmation.email_address.email }}</strong> for this studio. After this, the account can log in.</p>
+      <form method="post" action="{% url 'account_confirm_email' confirmation.key %}">
+        {% csrf_token %}
+        <button type="submit">Confirm email</button>
+      </form>
+    {% else %}
+      <p>This address is already confirmed on a different account.</p>
+    {% endif %}
+  {% else %}
+    <p>This confirmation link is invalid or has expired.</p>
+    <p><a href="{% url 'account_login' %}">Go to log in</a> and request a new one if you still need access.</p>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "allauth/layouts/base.html" %}
+{% load accounts_tags %}
+{% block head_title %}Verify your email · Awisee{% endblock %}
+{% block content %}
+  <h1>Verify your email</h1>
+  <p>We sent a confirmation link. The account cannot log in until that link is opened.</p>
+  {% latest_dev_email as dev_email %}
+  {% if debug_email and dev_email %}
+    <div class="dev-mail">
+      <strong>Local development inbox</strong>
+      <p class="mb-1">No mail server is configured, so the message to {{ dev_email.to_email }} is shown here.</p>
+      {% if dev_email.links %}
+        <a class="btn-accent" href="{{ dev_email.links.0 }}">Open verification link</a>
+      {% else %}
+        <pre class="mt-2 mb-0">{{ dev_email.body }}</pre>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="muted">Check the inbox for that address, including spam. You can close this page and come back after confirming.</p>
+  {% endif %}
+  <p class="mt-3"><a href="{% url 'account_login' %}">Back to log in</a></p>
+{% endblock %}

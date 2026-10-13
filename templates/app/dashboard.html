@@ -1,0 +1,97 @@
+{% extends "app/base.html" %}
+{% load humanize %}
+{% block title %}Overview · Awisee{% endblock %}
+{% block page_heading %}Studio overview{% endblock %}
+{% block content %}
+  <div class="page-head">
+    <p>Audience, views, and posts saved from every network you have connected.</p>
+    <form method="post" action="{% url 'networks:sync_all' %}">
+      {% csrf_token %}
+      <button class="btn-line" type="submit">Sync all</button>
+    </form>
+  </div>
+  {% if has_sample %}
+    <div class="notice">Some accounts are sample data, saved locally so the studio is usable before API keys are added. Live connections replace them.</div>
+  {% endif %}
+  {% if not rows %}
+    <section class="panel empty">
+      <h2>Nothing connected yet</h2>
+      <p>Connect Instagram, Facebook, YouTube, or LinkedIn. If the keys are not ready, load sample data and the overview will fill in.</p>
+      <a class="btn-accent" href="{% url 'networks:connections' %}">Open connections</a>
+    </section>
+  {% else %}
+    <section class="stat-grid">
+      <article class="stat"><span class="label">Audience</span><strong>{{ totals.audience|intcomma }}</strong><em>Followers and subscribers</em></article>
+      <article class="stat"><span class="label">Views</span><strong>{{ totals.views|intcomma }}</strong><em>Stored from the latest sync</em></article>
+      <article class="stat"><span class="label">Posts saved</span><strong>{{ totals.posts|intcomma }}</strong><em>Across {{ totals.accounts }} account{{ totals.accounts|pluralize }}</em></article>
+      <article class="stat"><span class="label">Engagement</span><strong>{{ totals.rate }}%</strong><em>{{ totals.reactions|intcomma }} reactions</em></article>
+    </section>
+    <section class="two-col">
+      <article class="panel">
+        <h2>Audience</h2>
+        <p class="muted">Last 30 days, by network.</p>
+        {% if charts.audience %}
+          <div class="chart-box"><canvas id="audienceChart"></canvas></div>
+          {{ charts.audience|json_script:"audienceChart-spec" }}
+        {% else %}
+          <p>Sync again after a day and this trend will start to draw.</p>
+        {% endif %}
+      </article>
+      <article class="panel">
+        <h2>Mix</h2>
+        <p class="muted">Share of the audience.</p>
+        {% if charts.mix %}
+          <div class="chart-box"><canvas id="mixChart"></canvas></div>
+          {{ charts.mix|json_script:"mixChart-spec" }}
+        {% endif %}
+      </article>
+    </section>
+    <section class="card-grid">
+      {% for row in rows %}
+        <article class="platform-card">
+          <header>
+            <div>
+              <div class="kicker"><i class="bi {{ row.meta.icon }}"></i> {{ row.meta.label }}</div>
+              <h2>{{ row.account.display_name|default:row.meta.label }}</h2>
+            </div>
+            {% if row.account.is_sample %}<span class="badge-sample">Sample</span>{% else %}<span class="badge-live">Live</span>{% endif %}
+          </header>
+          <p class="muted mb-2">{{ row.account.username }}</p>
+          <div class="stat-grid">
+            <div><span class="label">{{ row.meta.audience_label }}</span><strong style="font-size:24px">{{ row.snapshot.followers|default:0|intcomma }}</strong></div>
+            <div><span class="label">Views</span><strong style="font-size:24px">{{ row.snapshot.views|default:0|intcomma }}</strong></div>
+            <div><span class="label">Posts</span><strong style="font-size:24px">{{ row.posts|intcomma }}</strong></div>
+            <div><span class="label">Post rate</span><strong style="font-size:24px">{{ row.rate }}%</strong></div>
+          </div>
+          <a class="btn-line" href="{% url 'analytics:platform' row.account.platform %}">Open {{ row.meta.label }}</a>
+        </article>
+      {% endfor %}
+    </section>
+    <section class="panel mt-3">
+      <h2>Strongest saved posts</h2>
+      {% if top_content %}
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th>Post</th><th>Network</th><th>Views</th><th>Likes</th><th>Comments</th><th>Rate</th></tr>
+            </thead>
+            <tbody>
+              {% for item in top_content %}
+                <tr>
+                  <td><a href="{{ item.get_absolute_url }}">{{ item.title }}</a></td>
+                  <td>{{ item.account.get_platform_display }}</td>
+                  <td>{{ item.views|intcomma }}</td>
+                  <td>{{ item.likes|intcomma }}</td>
+                  <td>{{ item.comments|intcomma }}</td>
+                  <td>{{ item.engagement_rate }}%</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="muted">No posts stored yet.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+{% endblock %}
