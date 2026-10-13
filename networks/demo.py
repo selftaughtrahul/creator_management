@@ -51,10 +51,10 @@ PROFILES = {
         "impressions": 2500000,
         "reach": 980000,
     },
-    "linkedin": {
-        "external_id": "sample-linkedin",
+    "twitter": {
+        "external_id": "sample-twitter",
         "display_name": "Northline Studio",
-        "username": "northline-studio",
+        "username": "northline",
         "profile_url": "",
         "followers": 7340,
         "following": 512,
@@ -93,12 +93,12 @@ POSTS = {
         ("fifty", "What we learned from 50 posts", "video", 5, 76400, 3600, 280, 140, 0),
         ("thumbs", "Thumbnail test, side by side", "video", 2, 41200, 1980, 150, 70, 0),
     ],
-    "linkedin": [
-        ("hiring", "We are hiring a junior editor", "article", 19, 22400, 860, 74, 210, 31000),
-        ("rebrand", "Notes on a rebrand that took six weeks", "article", 14, 18600, 1240, 96, 340, 28000),
-        ("process-li", "The checklist we use before a shoot", "post", 11, 9800, 640, 40, 120, 16000),
-        ("case", "Case study: a bakery's new film", "article", 8, 14220, 980, 88, 260, 21000),
-        ("team", "Thursday in the studio", "image", 5, 6400, 420, 22, 60, 11000),
+    "twitter": [
+        ("hiring", "We are hiring a junior editor", "post", 19, 22400, 860, 74, 210, 31000),
+        ("rebrand", "Notes on a rebrand that took six weeks", "post", 14, 18600, 1240, 96, 340, 28000),
+        ("process-x", "The checklist we use before a shoot", "post", 11, 9800, 640, 40, 120, 16000),
+        ("case", "Case study: a bakery's new film", "post", 8, 14220, 980, 88, 260, 21000),
+        ("team", "Thursday in the studio", "post", 5, 6400, 420, 22, 60, 11000),
         ("asks", "The first question clients ask", "post", 1, 11200, 760, 130, 180, 19000),
     ],
 }

@@ -22,7 +22,7 @@ class SampleConnectionTests(TestCase):
         self.client.force_login(self.user)
 
     def test_sample_data_feeds_overview_platform_and_post(self):
-        for platform in ("instagram", "facebook", "youtube", "linkedin"):
+        for platform in ("instagram", "facebook", "youtube", "twitter"):
             response = self.client.post(reverse("networks:sample", args=[platform]))
             self.assertRedirects(response, reverse("analytics:platform", args=[platform]))
 
@@ -47,13 +47,13 @@ class SampleConnectionTests(TestCase):
         self.assertEqual(self.client.get(item.get_absolute_url()).status_code, 404)
 
     def test_sync_sample_adds_a_snapshot_and_disconnect_removes_it(self):
-        self.client.post(reverse("networks:sample", args=["linkedin"]))
-        account = SocialAccount.objects.get(user=self.user, platform="linkedin")
+        self.client.post(reverse("networks:sample", args=["twitter"]))
+        account = SocialAccount.objects.get(user=self.user, platform="twitter")
         before = account.snapshots.count()
-        self.client.post(reverse("networks:sync", args=["linkedin"]))
+        self.client.post(reverse("networks:sync", args=["twitter"]))
         self.assertEqual(account.snapshots.count(), before + 1)
-        self.client.post(reverse("networks:disconnect", args=["linkedin"]))
-        self.assertFalse(SocialAccount.objects.filter(user=self.user, platform="linkedin").exists())
+        self.client.post(reverse("networks:disconnect", args=["twitter"]))
+        self.assertFalse(SocialAccount.objects.filter(user=self.user, platform="twitter").exists())
 
     def test_live_oauth_without_keys_stays_on_connections(self):
         response = self.client.get(reverse("networks:start", args=["facebook"]))

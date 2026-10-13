@@ -22,12 +22,12 @@ PLATFORMS = {
         "audience_label": "Subscribers",
         "blurb": "Channel subscribers, lifetime views, and recent video performance.",
     },
-    "linkedin": {
-        "label": "LinkedIn",
-        "icon": "bi-linkedin",
-        "color": "#0a66c2",
+    "twitter": {
+        "label": "X",
+        "icon": "bi-twitter-x",
+        "color": "#1d9bf0",
         "audience_label": "Followers",
-        "blurb": "Profile details from the LinkedIn account you authorize.",
+        "blurb": "Followers and recent posts from the X account you authorize.",
     },
 }
 
@@ -73,13 +73,13 @@ OAUTH = {
         "client_id": lambda: settings.META_APP_ID,
         "client_secret": lambda: settings.META_APP_SECRET,
     },
-    "linkedin": {
-        "auth_url": "https://www.linkedin.com/oauth/v2/authorization",
-        "token_url": "https://www.linkedin.com/oauth/v2/accessToken",
-        "scopes": ("openid", "profile", "email"),
+    "twitter": {
+        "auth_url": "https://twitter.com/i/oauth2/authorize",
+        "token_url": "https://api.twitter.com/2/oauth2/token",
+        "scopes": ("tweet.read", "users.read", "offline.access"),
         "extra": {},
-        "client_id": lambda: settings.LINKEDIN_CLIENT_ID,
-        "client_secret": lambda: settings.LINKEDIN_CLIENT_SECRET,
+        "client_id": lambda: settings.TWITTER_CLIENT_ID,
+        "client_secret": lambda: settings.TWITTER_CLIENT_SECRET,
     },
 }
 

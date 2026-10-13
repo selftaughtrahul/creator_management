@@ -1,6 +1,6 @@
 # Awisee
 
-A Django studio for signing in, connecting Instagram, Facebook, YouTube, and LinkedIn, and reading analytics stored in SQLite.
+A Django studio for signing in, connecting Instagram, Facebook, YouTube, and X, and reading analytics stored in SQLite.
 
 ## Run it
 
@@ -25,9 +25,9 @@ Copy `.env.example` to `.env` and add the keys you have. Register these redirect
 | YouTube | `http://127.0.0.1:8000/connections/youtube/callback/` |
 | Facebook | `http://127.0.0.1:8000/connections/facebook/callback/` |
 | Instagram | `http://127.0.0.1:8000/connections/instagram/callback/` |
-| LinkedIn | `http://127.0.0.1:8000/connections/linkedin/callback/` |
+| X | `http://127.0.0.1:8000/connections/twitter/callback/` |
 
-Instagram uses the official Graph API, so the account needs to be a professional account linked to a Facebook Page you manage. YouTube needs the Data API and Analytics API enabled. LinkedIn’s standard profile permission returns identity, not follower counts.
+Instagram uses the official Graph API, so the account needs to be a professional account linked to a Facebook Page you manage. YouTube needs the Data API and Analytics API enabled. X uses OAuth 2.0 with Read access so the app can store followers and recent posts.
 
 Refresh everything from the command line with:
 

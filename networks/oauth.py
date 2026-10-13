@@ -1,8 +1,11 @@
+import base64
+import hashlib
 import secrets
 from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone
 
 from networks.http import ProviderError, api_get, api_post, graph
@@ -12,8 +15,7 @@ from networks.platforms import OAUTH, graph_version
 def begin_authorize(request, platform, redirect_uri):
     spec = OAUTH[platform]
     state = secrets.token_urlsafe(32)
-    request.session[f"oauth_{platform}"] = {"state": state, "redirect_uri": redirect_uri}
-    request.session.modified = True
+    saved = {"state": state, "redirect_uri": redirect_uri}
     params = {
         "client_id": spec["client_id"](),
         "redirect_uri": redirect_uri,
@@ -22,19 +24,38 @@ def begin_authorize(request, platform, redirect_uri):
         "state": state,
         **spec["extra"],
     }
+    if platform == "twitter":
+        verifier, challenge = _pkce_pair()
+        saved["code_verifier"] = verifier
+        params["code_challenge"] = challenge
+        params["code_challenge_method"] = "S256"
+    saved["user_id"] = request.user.pk
+    saved["platform"] = platform
+    cache.set(f"oauth-state-{state}", saved, timeout=600)
+    request.session[f"oauth_{platform}"] = saved
+    request.session.modified = True
     auth_url = spec["auth_url"].format(version=graph_version())
     return f"{auth_url}?{urlencode(params)}"
 
 
 def pop_state(request, platform, state):
-    saved = request.session.pop(f"oauth_{platform}", None)
+    saved = cache.get(f"oauth-state-{state}") if state else None
+    if saved and saved.get("platform") == platform:
+        cache.delete(f"oauth-state-{state}")
+        request.session.pop(f"oauth_{platform}", None)
+        return saved
+    session_saved = request.session.pop(f"oauth_{platform}", None)
     request.session.modified = True
-    if not saved or not state or not secrets.compare_digest(saved.get("state", ""), state):
+    if (
+        not session_saved
+        or not state
+        or not secrets.compare_digest(session_saved.get("state", ""), state)
+    ):
         raise ProviderError("The connection request could not be verified. Start it again from Connections.")
-    return saved["redirect_uri"]
+    return session_saved
 
 
-def exchange_code(platform, code, redirect_uri):
+def exchange_code(platform, code, redirect_uri, code_verifier=""):
     spec = OAUTH[platform]
     token_url = spec["token_url"].format(version=graph_version())
     params = {
@@ -44,10 +65,16 @@ def exchange_code(platform, code, redirect_uri):
         "redirect_uri": redirect_uri,
         "grant_type": "authorization_code",
     }
+    headers = {"Accept": "application/json"}
     if platform in {"facebook", "instagram"}:
         payload = api_get(token_url, params=params)
     else:
-        payload = api_post(token_url, data=params, headers={"Accept": "application/json"})
+        if platform == "twitter":
+            if not code_verifier:
+                raise ProviderError("The X connection expired before it finished. Start it again.")
+            params["code_verifier"] = code_verifier
+            headers = _twitter_basic_headers()
+        payload = api_post(token_url, data=params, headers=headers)
     if "access_token" not in payload:
         raise ProviderError("The network did not return an access token.")
     if platform in {"facebook", "instagram"}:
@@ -95,15 +122,15 @@ def _refresh(account):
                 "grant_type": "refresh_token",
             },
         )
-    elif account.platform == "linkedin" and account.refresh_token:
+    elif account.platform == "twitter" and account.refresh_token:
         payload = api_post(
-            OAUTH["linkedin"]["token_url"],
+            OAUTH["twitter"]["token_url"],
             data={
-                "client_id": settings.LINKEDIN_CLIENT_ID,
-                "client_secret": settings.LINKEDIN_CLIENT_SECRET,
+                "client_id": settings.TWITTER_CLIENT_ID,
                 "refresh_token": account.refresh_token,
                 "grant_type": "refresh_token",
             },
+            headers=_twitter_basic_headers(),
         )
     else:
         raise ProviderError("This connection expired. Connect it again to keep syncing.")
@@ -113,3 +140,16 @@ def _refresh(account):
     if payload.get("expires_in"):
         account.token_expires_at = timezone.now() + timedelta(seconds=int(payload["expires_in"]))
     account.save(update_fields=["access_token", "refresh_token", "token_expires_at"])
+
+
+def _pkce_pair():
+    verifier = secrets.token_urlsafe(64)
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+    return verifier, challenge
+
+
+def _twitter_basic_headers():
+    raw = f"{settings.TWITTER_CLIENT_ID}:{settings.TWITTER_CLIENT_SECRET}".encode()
+    token = base64.b64encode(raw).decode("ascii")
+    return {"Authorization": f"Basic {token}", "Accept": "application/json"}

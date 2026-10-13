@@ -64,7 +64,7 @@ def fetch_account(account):
         "youtube": fetch_youtube,
         "facebook": fetch_facebook,
         "instagram": fetch_instagram,
-        "linkedin": fetch_linkedin,
+        "twitter": fetch_twitter,
     }[account.platform]
     return fetcher(account)
 
@@ -254,25 +254,80 @@ def fetch_instagram(account):
     )
 
 
-def fetch_linkedin(account):
+def fetch_twitter(account):
     token = ensure_access_token(account)
-    info = api_get(
-        "https://api.linkedin.com/v2/userinfo",
-        headers={"Authorization": f"Bearer {token}"},
+    headers = {"Authorization": f"Bearer {token}"}
+    profile = api_get(
+        "https://api.twitter.com/2/users/me",
+        headers=headers,
+        params={
+            "user.fields": "id,name,username,description,profile_image_url,public_metrics,url",
+        },
     )
-    name = info.get("name") or "LinkedIn member"
+    data = profile.get("data") or {}
+    if not data.get("id"):
+        raise ProviderError("X did not return a profile for this account.")
+    metrics = data.get("public_metrics") or {}
+    username = data.get("username") or ""
+    note = ""
+    try:
+        tweets = api_get(
+            f"https://api.twitter.com/2/users/{data['id']}/tweets",
+            headers=headers,
+            params={
+                "max_results": 10,
+                "exclude": "retweets,replies",
+                "tweet.fields": "created_at,public_metrics,text",
+            },
+        )
+    except ProviderError as exc:
+        tweets = {}
+        note = f"Profile saved. Recent posts could not be read: {exc}"
+    contents = []
+    for tweet in tweets.get("data") or []:
+        text = (tweet.get("text") or "Post").strip()
+        stats = tweet.get("public_metrics") or {}
+        contents.append(
+            FetchedContent(
+                external_id=str(tweet.get("id") or ""),
+                title=_title(text),
+                caption=text,
+                content_type="post",
+                url=f"https://x.com/{username}/status/{tweet.get('id')}" if username and tweet.get("id") else "",
+                published_at=_parse_dt(tweet.get("created_at")),
+                views=as_int(stats.get("impression_count")),
+                likes=as_int(stats.get("like_count")),
+                comments=as_int(stats.get("reply_count")),
+                shares=as_int(stats.get("retweet_count")) + as_int(stats.get("quote_count")),
+                saves=as_int(stats.get("bookmark_count")),
+            )
+        )
     return FetchResult(
         profile=FetchedProfile(
-            external_id=str(info.get("sub") or ""),
-            display_name=name,
-            username=info.get("email") or "",
-            profile_url="https://www.linkedin.com/feed/",
-            avatar_url=info.get("picture") or "",
-            raw={key: info.get(key) for key in ("sub", "name", "email", "locale") if info.get(key)},
+            external_id=str(data.get("id") or ""),
+            display_name=data.get("name") or username or "X account",
+            username=username,
+            profile_url=f"https://x.com/{username}" if username else "",
+            avatar_url=data.get("profile_image_url") or "",
+            raw={
+                "description": data.get("description") or "",
+                "public_metrics": metrics,
+            },
         ),
-        snapshots=[FetchedSnapshot(captured_at=timezone.now())],
-        contents=[],
-        note="Profile saved. Follower and post counts need LinkedIn's marketing permissions, which this connection does not include.",
+        snapshots=[
+            FetchedSnapshot(
+                captured_at=timezone.now(),
+                followers=as_int(metrics.get("followers_count")),
+                following=as_int(metrics.get("following_count")),
+                content_count=as_int(metrics.get("tweet_count")),
+                views=sum(item.views for item in contents),
+                likes=sum(item.likes for item in contents),
+                comments=sum(item.comments for item in contents),
+                shares=sum(item.shares for item in contents),
+            )
+        ],
+        contents=contents,
+        note=note,
     )
 
 

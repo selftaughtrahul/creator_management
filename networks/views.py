@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -20,6 +21,17 @@ def _platform(key):
     if key not in PLATFORMS:
         raise Http404
     return key
+
+
+def _resume_user(request, user_id):
+    if request.user.is_authenticated:
+        if user_id and request.user.pk != user_id:
+            raise ProviderError("This connection was started from a different account.")
+        return
+    user = get_user_model().objects.filter(pk=user_id).first()
+    if user is None:
+        raise ProviderError("Sign in on this site, then connect the account again.")
+    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
 
 
 @login_required
@@ -51,7 +63,6 @@ def start_oauth(request, platform):
     return redirect(begin_authorize(request, platform, redirect_uri))
 
 
-@login_required
 def oauth_callback(request, platform):
     platform = _platform(platform)
     label = PLATFORMS[platform]["label"]
@@ -59,14 +70,20 @@ def oauth_callback(request, platform):
         messages.error(request, request.GET.get("error_description") or f"{label} did not finish connecting.")
         return redirect("networks:connections")
     try:
-        redirect_uri = pop_state(request, platform, request.GET.get("state", ""))
+        saved = pop_state(request, platform, request.GET.get("state", ""))
+        _resume_user(request, saved.get("user_id"))
         code = request.GET.get("code")
         if not code:
             raise ProviderError(f"{label} did not return an authorization code.")
-        token = exchange_code(platform, code, redirect_uri)
+        token = exchange_code(
+            platform,
+            code,
+            saved["redirect_uri"],
+            code_verifier=saved.get("code_verifier", ""),
+        )
     except ProviderError as exc:
         messages.error(request, str(exc))
-        return redirect("networks:connections")
+        return redirect("networks:connections" if request.user.is_authenticated else "account_login")
 
     account, _created = SocialAccount.objects.get_or_create(
         user=request.user,

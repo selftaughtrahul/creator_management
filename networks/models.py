@@ -7,7 +7,7 @@ class SocialAccount(models.Model):
         INSTAGRAM = "instagram", "Instagram"
         FACEBOOK = "facebook", "Facebook"
         YOUTUBE = "youtube", "YouTube"
-        LINKEDIN = "linkedin", "LinkedIn"
+        TWITTER = "twitter", "X"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
