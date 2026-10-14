@@ -7,6 +7,8 @@ from django.urls import reverse
 
 from allauth.account.models import EmailAddress
 
+from accounts.models import StudioProfile
+from creators.models import CreatorProfile
 from networks.demo import PROFILES, connect_sample
 from networks.fetchers import _meta_audience_history, gender_bucket
 from networks.models import SocialAccount
@@ -17,6 +19,8 @@ User = get_user_model()
 def make_user(email, username):
     user = User.objects.create_user(username=username, email=email, password="Northline-Studio-2026!")
     EmailAddress.objects.create(user=user, email=email, verified=True, primary=True)
+    StudioProfile.objects.update_or_create(user=user, defaults={"role": StudioProfile.Role.CREATOR})
+    CreatorProfile.objects.get_or_create(user=user, defaults={"display_name": username})
     return user
 
 

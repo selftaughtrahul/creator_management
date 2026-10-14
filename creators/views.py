@@ -35,7 +35,9 @@ def join(request):
     if request.user.is_authenticated:
         if hasattr(request.user, "creator_profile"):
             return redirect("creators:me")
-        return redirect("analytics:dashboard")
+        from accounts.permissions import home_url
+
+        return redirect(home_url(request.user))
     form = CreatorJoinForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         email = form.cleaned_data["email"]
@@ -354,6 +356,8 @@ def run_jobs(request):
 
 @login_required
 def creator_redirect(request):
+    from accounts.permissions import home_url
+
     if hasattr(request.user, "creator_profile"):
         return redirect("creators:me")
-    return redirect("analytics:dashboard")
+    return redirect(home_url(request.user))

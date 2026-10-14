@@ -108,6 +108,16 @@ class RoleAccessTests(TestCase):
             Notification.objects.filter(user=admin, kind=Notification.Kind.INVITATION).exists()
         )
 
+    def test_staff_do_not_see_personal_network_nav_or_connections(self):
+        admin = make_user("nav@example.com", "navadmin", role=StudioProfile.Role.ADMIN)
+        self.client.force_login(admin)
+        studio = self.client.get(reverse("campaigns:dashboard"))
+        self.assertContains(studio, "Campaign studio")
+        self.assertNotContains(studio, "My overview")
+        self.assertNotContains(studio, "My analytics")
+        self.assertEqual(self.client.get(reverse("analytics:dashboard")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("networks:connections")).status_code, 403)
+
 
 class LegalPageTests(TestCase):
     def test_privacy_and_deletion_pages_are_public(self):

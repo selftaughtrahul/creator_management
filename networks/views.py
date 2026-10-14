@@ -3,7 +3,6 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
-from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -194,7 +193,7 @@ def sync_all(request):
     return redirect("analytics:dashboard")
 
 
-@login_required
+@creator_required
 def disconnect(request, platform):
     platform = _platform(platform)
     account = get_object_or_404(SocialAccount, user=request.user, platform=platform)
