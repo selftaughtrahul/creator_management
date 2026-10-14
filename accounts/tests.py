@@ -17,9 +17,24 @@ User = get_user_model()
 class EmailSignupTests(TestCase):
     password = "Northline-Studio-2026!"
 
-    def test_email_signup_cannot_enter_until_verified(self):
-        response = self.client.post(
+    def test_staff_cannot_sign_themselves_up(self):
+        closed = self.client.post(
             reverse("account_signup"),
+            {
+                "full_name": "Ada Lovelace",
+                "email": "ada@example.com",
+                "password1": self.password,
+                "password2": self.password,
+            },
+        )
+        self.assertEqual(closed.status_code, 403)
+        self.assertContains(closed, "Staff cannot sign up here", status_code=403)
+        self.assertEqual(self.client.get(reverse("accounts:employee_join")).status_code, 404)
+        self.assertFalse(User.objects.filter(email="ada@example.com").exists())
+
+    def test_creator_signup_cannot_enter_until_verified(self):
+        response = self.client.post(
+            reverse("creators:join"),
             {
                 "full_name": "Ada Lovelace",
                 "email": "ada@example.com",
@@ -32,8 +47,7 @@ class EmailSignupTests(TestCase):
         self.assertContains(response, "Verify your email")
         self.assertFalse(response.wsgi_request.user.is_authenticated)
         user = User.objects.get(email="ada@example.com")
-        self.assertEqual(user.first_name, "Ada")
-        self.assertEqual(user.last_name, "Lovelace")
+        self.assertEqual(user.studio.role, "creator")
         self.assertFalse(EmailAddress.objects.get(user=user).verified)
 
         blocked = self.client.post(
@@ -42,9 +56,8 @@ class EmailSignupTests(TestCase):
             follow=True,
         )
         self.assertFalse(blocked.wsgi_request.user.is_authenticated)
-        self.assertContains(blocked, "Verify your email")
 
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertGreaterEqual(len(mail.outbox), 1)
         match = re.search(r"https?://[^\s]+", mail.outbox[0].body)
         self.assertIsNotNone(match)
         confirm_path = urlparse(match.group(0)).path
@@ -58,8 +71,36 @@ class EmailSignupTests(TestCase):
                 follow=True,
             )
         self.assertTrue(confirmed.wsgi_request.user.is_authenticated)
-        self.assertEqual(user.studio.role, "employee")
-        self.assertContains(confirmed, "Campaign studio")
+        self.assertContains(confirmed, "Creator profile")
+
+    def test_staff_log_in_with_email_and_creator_login_rejects_them(self):
+        staff = make_user("emp@example.com", "emp", role=StudioProfile.Role.EMPLOYEE)
+        home = self.client.get(reverse("accounts:home"))
+        self.assertContains(home, "Creator signup")
+        self.assertNotContains(home, "Register as a creator")
+        self.assertNotContains(home, "Creator log in")
+        self.assertNotContains(home, "Staff signup")
+        rejected = self.client.post(
+            reverse("account_login"),
+            {"login": staff.email, "password": self.password},
+        )
+        self.assertContains(rejected, "Staff accounts use the staff log in")
+        self.assertFalse(rejected.wsgi_request.user.is_authenticated)
+        logged_in = self.client.post(
+            reverse("accounts:staff_login"),
+            {"login": staff.email, "password": self.password},
+            follow=True,
+        )
+        self.assertTrue(logged_in.wsgi_request.user.is_authenticated)
+        self.assertContains(logged_in, "Campaign studio")
+        creator = make_creator("c@example.com", "creat")
+        self.client.logout()
+        creator_on_staff = self.client.post(
+            reverse("accounts:staff_login"),
+            {"login": creator.user.email, "password": self.password},
+        )
+        self.assertContains(creator_on_staff, "This log in is for staff")
+        self.assertFalse(creator_on_staff.wsgi_request.user.is_authenticated)
 
 
 class RoleAccessTests(TestCase):

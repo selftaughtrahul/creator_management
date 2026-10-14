@@ -1,10 +1,8 @@
 {% extends "allauth/layouts/base.html" %}
-{% block head_title %}Log in · Awisee{% endblock %}
+{% block head_title %}Creator log in · Awisee{% endblock %}
 {% block content %}
-  <h1>Welcome back</h1>
-  <p class="lede">Use Google, or the email and password you already verified.</p>
-  {% include "partials/google_button.html" %}
-  <div class="or-line">or email</div>
+  <h1>Creator log in</h1>
+  <p class="lede">Use the email and password from your creator account. The address has to be verified first.</p>
   <form method="post" action="{% url 'account_login' %}">
     {% csrf_token %}
     {{ redirect_field }}
@@ -19,5 +17,5 @@
     {% for error in form.non_field_errors %}<div class="field-error">{{ error }}</div>{% endfor %}
     <button type="submit">Log in</button>
   </form>
-  <p class="mt-3">New here? <a href="{% url 'account_signup' %}">Create an account</a></p>
+  <p class="mt-3">New creator? <a href="{% url 'creators:join' %}">Register</a></p>
 {% endblock %}

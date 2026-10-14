@@ -1,17 +1,16 @@
 from django.contrib import messages
-from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from accounts.forms import EmployeeJoinForm, PeopleForm, ProfileForm
-from accounts.models import DEFAULT_EMPLOYEE_PERMISSIONS, Notification, StudioProfile
-from accounts.permissions import admin_required, home_url
-from accounts.utils import unique_username
+from allauth.account.forms import LoginForm
 
-User = get_user_model()
+from accounts.forms import PeopleForm, ProfileForm
+from accounts.models import DEFAULT_EMPLOYEE_PERMISSIONS, Notification, StudioProfile
+from accounts.permissions import admin_required, home_url, is_creator, is_staff_role
 
 
 def home(request):
@@ -29,34 +28,39 @@ def data_deletion(request):
 
 
 def employee_join(request):
+    raise Http404
+
+
+def signup_closed(request):
+    return render(request, "accounts/signup_closed.html", status=403)
+
+
+def creator_login(request):
     if request.user.is_authenticated:
         return redirect(home_url(request.user))
-    form = EmployeeJoinForm(request.POST or None)
+    form = LoginForm(request.POST or None, request=request)
     if request.method == "POST" and form.is_valid():
-        email = form.cleaned_data["email"]
-        name = form.cleaned_data["full_name"].strip()
-        first, _, last = name.partition(" ")
-        user = User.objects.create_user(
-            username=unique_username(email),
-            email=email,
-            password=form.cleaned_data["password1"],
-            first_name=first,
-            last_name=last,
-        )
-        StudioProfile.objects.update_or_create(
-            user=user,
-            defaults={
-                "role": StudioProfile.Role.EMPLOYEE,
-                "permissions": list(DEFAULT_EMPLOYEE_PERMISSIONS),
-            },
-        )
-        from allauth.account.models import EmailAddress
+        if not is_creator(form.user):
+            form.add_error(None, "Staff accounts use the staff log in. This page is for creators.")
+        else:
+            form.login(request)
+            return redirect(home_url(request.user))
+    return render(request, "account/login.html", {"form": form})
 
-        address = EmailAddress.objects.create(user=user, email=email, primary=True, verified=False)
-        address.send_confirmation(request, signup=True)
-        messages.info(request, "Check your email to verify the address before logging in.")
-        return redirect("account_email_verification_sent")
-    return render(request, "accounts/employee_join.html", {"form": form})
+
+def staff_login(request):
+    if request.user.is_authenticated:
+        if is_staff_role(request.user):
+            return redirect(home_url(request.user))
+        return redirect(home_url(request.user))
+    form = LoginForm(request.POST or None, request=request)
+    if request.method == "POST" and form.is_valid():
+        if not is_staff_role(form.user):
+            form.add_error(None, "This log in is for staff. Creators register and log in from the main page.")
+        else:
+            form.login(request)
+            return redirect(home_url(request.user))
+    return render(request, "accounts/staff_login.html", {"form": form})
 
 
 @login_required

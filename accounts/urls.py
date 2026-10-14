@@ -9,6 +9,7 @@ urlpatterns = [
     path("privacy/", views.privacy, name="privacy"),
     path("data-deletion/", views.data_deletion, name="data_deletion"),
     path("employees/join/", views.employee_join, name="employee_join"),
+    path("staff/login/", views.staff_login, name="staff_login"),
     path("profile/", views.profile, name="profile"),
     path("notifications/", views.notifications, name="notifications"),
     path("notifications/read-all/", views.mark_all_notifications_read, name="notifications_read_all"),

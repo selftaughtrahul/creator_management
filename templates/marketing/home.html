@@ -16,19 +16,14 @@
     <a class="brand-lockup" href="{% url 'accounts:home' %}"><span class="brand-mark">A</span> Awisee</a>
     <nav>
       <a href="{% url 'account_login' %}">Log in</a>
-      <a class="btn-accent" href="{% url 'accounts:employee_join' %}">Staff signup</a>
+      <a class="btn-accent" href="{% url 'creators:join' %}">Creator signup</a>
     </nav>
   </header>
   <section class="hero">
     <div>
       <p class="eyebrow">Content studio</p>
       <h1>See the work across every network.</h1>
-      <p class="lede">Create an account with email verification or Google. Connect Instagram, Facebook, YouTube, and X, then keep the numbers in your own database.</p>
-      <div class="hero-actions">
-        <a class="btn-accent" href="{% url 'accounts:employee_join' %}">Join as an employee</a>
-        <a class="btn-line" href="{% url 'creators:join' %}">Register as a creator</a>
-        <a class="btn-line" href="{% url 'account_login' %}">Log in</a>
-      </div>
+      <p class="lede">Creators register with email, verify the address, then connect Instagram, Facebook, YouTube, and X. The numbers stay in your own database.</p>
     </div>
     <div class="steps">
       <article class="step"><span>01</span><h2>Sign up</h2><p class="mb-0">Email accounts must confirm the address before they can log in. Google uses an address that is already verified.</p></article>
@@ -38,6 +33,7 @@
   </section>
   <footer class="footer-lite">
     <span>Django, SQLite, HTML, CSS, and Bootstrap.</span>
+    <a href="{% url 'accounts:staff_login' %}">Staff log in</a>
     <a href="{% url 'accounts:privacy' %}">Privacy policy</a>
   </footer>
 </body>
