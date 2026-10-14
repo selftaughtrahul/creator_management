@@ -1,4 +1,7 @@
 {% for field in form %}
+  {% if field.is_hidden %}
+    {{ field }}
+  {% else %}
   <div class="field">
     {% if field.field.widget.input_type == "checkbox" or field.name == "niches" or field.name == "platforms" or field.name == "permissions" or field.name == "decision" %}
       <label>{{ field.label }}</label>
@@ -10,5 +13,6 @@
     {% if field.help_text %}<div class="help text-muted">{{ field.help_text }}</div>{% endif %}
     {% for error in field.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
   </div>
+  {% endif %}
 {% endfor %}
 {% for error in form.non_field_errors %}<div class="field-error">{{ error }}</div>{% endfor %}

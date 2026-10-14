@@ -61,7 +61,7 @@ def delete_sample_data(request):
     return redirect("campaigns:dashboard")
 
 
-def _campaign_list(request, form=None, open_form=False):
+def _campaign_list(request, form=None, open_form=False, editing=None):
     rows = Campaign.objects.select_related("owner", "niche")
     status = request.GET.get("status")
     if status:
@@ -75,13 +75,14 @@ def _campaign_list(request, form=None, open_form=False):
             "status": status,
             "form": form or CampaignForm(),
             "open_form": open_form,
+            "editing": editing,
         },
     )
 
 
 @permission_required("campaigns")
 def campaign_list(request):
-    return _campaign_list(request)
+    return _campaign_list(request, open_form=request.GET.get("new") == "1")
 
 
 @permission_required("campaigns")
@@ -106,7 +107,7 @@ def campaign_edit(request, pk):
         _store_documents(campaign, form.cleaned_data.get("documents") or [], request.user)
         messages.success(request, "Campaign updated.")
         return redirect("campaigns:detail", pk=campaign.pk)
-    return _render_campaign_detail(request, campaign, edit_form=form, open_drawer="campaignEditDrawer")
+    return _campaign_list(request, form=form, open_form=True, editing=campaign)
 
 
 def _store_documents(campaign, files, user):

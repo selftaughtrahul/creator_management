@@ -97,10 +97,6 @@
   {% include "partials/side_form.html" with drawer_id="offerDrawer" drawer_title="Propose offer" drawer_form=offer_form action_drawer="1" submit_label="Propose offer" open_drawer=open_drawer %}
   {% include "partials/side_form.html" with drawer_id="outcomeDrawer" drawer_title="Record outcome" drawer_form=invitation_form action_drawer="1" submit_label="Record outcome" open_drawer=open_drawer %}
   {% include "partials/side_form.html" with drawer_id="decideDrawer" drawer_title="Decide offer" action_drawer="1" submit_name="action" submit_value="accept" submit_label="Accept" secondary_name="action" secondary_value="decline" secondary_label="Decline" open_drawer=open_drawer %}
-  {% if edit_form %}
-    {% url 'campaigns:edit' campaign.pk as edit_action %}
-    {% include "partials/side_form.html" with drawer_id="campaignEditDrawer" drawer_title="Edit campaign" drawer_form=edit_form form_action=edit_action form_enctype="multipart/form-data" submit_label="Save campaign" open_drawer=open_drawer %}
-  {% endif %}
   <script>
     const boxes = document.querySelectorAll(".creator-box");
     const hidden = document.getElementById("id_creator_ids");

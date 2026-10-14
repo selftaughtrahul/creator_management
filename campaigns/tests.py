@@ -63,6 +63,12 @@ class CampaignAndSearchTests(TestCase):
         )
         campaign = Campaign.objects.get(name="Mobile launch")
         self.assertRedirects(created, reverse("campaigns:detail", args=[campaign.pk]))
+        listing = self.client.get(reverse("campaigns:list"))
+        self.assertContains(listing, "Edit")
+        editor = self.client.get(reverse("campaigns:edit", args=[campaign.pk]))
+        self.assertContains(editor, "Edit campaign")
+        self.assertContains(editor, "Mobile launch")
+        self.assertContains(editor, reverse("campaigns:edit", args=[campaign.pk]))
         edited = self.client.post(
             reverse("campaigns:edit", args=[campaign.pk]),
             {

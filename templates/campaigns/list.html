@@ -4,11 +4,11 @@
 {% block content %}
   <div class="page-head">
     <p>Create a brief, then discover and shortlist creators from stored profiles.</p>
-    <button class="btn-accent" type="button" data-bs-toggle="offcanvas" data-bs-target="#campaignDrawer" aria-controls="campaignDrawer">New campaign</button>
+    <a class="btn-accent" href="{% url 'campaigns:list' %}?new=1">New campaign</a>
   </div>
   <section class="panel">
     <table class="data">
-      <thead><tr><th>Name</th><th>Status</th><th>Niche</th><th>Budget</th><th>Updated</th></tr></thead>
+      <thead><tr><th>Name</th><th>Status</th><th>Niche</th><th>Budget</th><th>Updated</th><th></th></tr></thead>
       <tbody>
         {% for campaign in page %}
           <tr>
@@ -17,9 +17,10 @@
             <td>{{ campaign.niche.name|default:"—" }}</td>
             <td>{% if campaign.budget is not None %}{{ campaign.budget }}{% else %}Not set{% endif %}</td>
             <td>{{ campaign.updated_at|date:"d M Y" }}</td>
+            <td><a class="btn-line" href="{% url 'campaigns:edit' campaign.pk %}">Edit</a></td>
           </tr>
         {% empty %}
-          <tr><td colspan="5">No campaigns yet.</td></tr>
+          <tr><td colspan="6">No campaigns yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -27,16 +28,16 @@
   </section>
   <div class="offcanvas offcanvas-end campaign-drawer" tabindex="-1" id="campaignDrawer" aria-labelledby="campaignDrawerLabel">
     <div class="offcanvas-header">
-      <h2 id="campaignDrawerLabel">New campaign</h2>
+      <h2 id="campaignDrawerLabel">{% if editing %}Edit campaign{% else %}New campaign{% endif %}</h2>
       <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">
-      <form method="post" action="{% url 'campaigns:create' %}" enctype="multipart/form-data">
+      <form method="post" action="{% if editing %}{% url 'campaigns:edit' editing.pk %}{% else %}{% url 'campaigns:create' %}{% endif %}" enctype="multipart/form-data">
         {% csrf_token %}
         {% include "partials/form_fields.html" %}
         <div class="actions">
-          <button class="btn-accent" type="submit">Save campaign</button>
-          <button class="btn-line" type="button" data-bs-dismiss="offcanvas">Cancel</button>
+          <button class="btn-accent" type="submit">{% if editing %}Save changes{% else %}Save campaign{% endif %}</button>
+          <a class="btn-line" href="{% url 'campaigns:list' %}">Cancel</a>
         </div>
       </form>
     </div>
