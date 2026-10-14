@@ -10,36 +10,24 @@
     {% for offer in offers %}
       <p><strong>{{ offer.amount }} {{ offer.currency }}</strong> · {{ offer.get_state_display }} · {{ offer.note }}</p>
       {% if offer.state == "proposed" or offer.state == "countered" %}
-        <form method="post" action="{% url 'creators:respond_offer' offer.pk %}" class="actions">
-          {% csrf_token %}
-          <input type="text" name="note" placeholder="Optional note">
-          <button class="btn-accent" name="decision" value="accept">Accept offer</button>
-          <button class="btn-line" name="decision" value="reject">Reject offer</button>
-        </form>
+        <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#respondDrawer" data-form-action="{% url 'creators:respond_offer' offer.pk %}" data-drawer-title="Respond to {{ offer.amount }} {{ offer.currency }}">Respond</button>
       {% endif %}
     {% empty %}
       <p class="muted">No offers yet.</p>
     {% endfor %}
-    <form method="post" class="stack-form mt-3">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="counter">
-      {% include "partials/form_fields.html" %}
-      <button class="btn-accent" type="submit">Send counteroffer</button>
-    </form>
+    <button class="btn-accent mt-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#counterDrawer">Send counteroffer</button>
   </section>
   <section class="panel mt-3">
     <h2>Invitations</h2>
     {% for invite in invitations %}
       <p>{{ invite.subject }} · {{ invite.get_status_display }} · {{ invite.created_at|date:"d M Y H:i" }}</p>
       {% if invite.status == "sent" or invite.status == "stored_locally" or invite.status == "confirmed" or invite.status == "draft" or invite.status == "responded" %}
-        <form method="post" action="{% url 'creators:respond_invitation' invite.pk %}" class="actions">
-          {% csrf_token %}
-          <button class="btn-accent" name="decision" value="accept">Accept</button>
-          <button class="btn-line" name="decision" value="reject">Reject</button>
-        </form>
+        <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#respondDrawer" data-form-action="{% url 'creators:respond_invitation' invite.pk %}" data-drawer-title="Respond to {{ invite.subject }}">Respond</button>
       {% endif %}
     {% empty %}
       <p class="muted">None yet.</p>
     {% endfor %}
   </section>
+  {% include "partials/side_form.html" with drawer_id="respondDrawer" drawer_title="Respond" action_drawer="1" note_field="1" submit_name="decision" submit_value="accept" submit_label="Accept" secondary_name="decision" secondary_value="reject" secondary_label="Reject" open_drawer=open_drawer %}
+  {% include "partials/side_form.html" with drawer_id="counterDrawer" drawer_title="Counteroffer" drawer_form=form hidden_action="counter" submit_label="Send counteroffer" open_drawer=open_drawer %}
 {% endblock %}

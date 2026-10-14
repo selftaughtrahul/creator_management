@@ -91,6 +91,7 @@ def me(request):
             "form": form,
             "metrics": metrics,
             "quality": data_quality(profile),
+            "open_drawer": "profileDrawer" if request.method == "POST" else "",
         },
     )
 
@@ -108,7 +109,11 @@ def documents(request):
     return render(
         request,
         "creators/documents.html",
-        {"form": form, "documents": profile.documents.all()},
+        {
+            "form": form,
+            "documents": profile.documents.all(),
+            "open_drawer": "documentDrawer" if request.method == "POST" or request.GET.get("new") == "1" else "",
+        },
     )
 
 
@@ -164,6 +169,7 @@ def my_campaign(request, pk):
             "offers": offers,
             "invitations": invitations,
             "form": form,
+            "open_drawer": "counterDrawer" if request.method == "POST" else "",
         },
     )
 

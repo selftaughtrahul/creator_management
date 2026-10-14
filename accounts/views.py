@@ -70,7 +70,11 @@ def profile(request):
         form.save()
         messages.success(request, "Profile saved.")
         return redirect("accounts:profile")
-    return render(request, "app/profile.html", {"form": form})
+    return render(
+        request,
+        "app/profile.html",
+        {"form": form, "open_drawer": "accountDrawer" if request.method == "POST" else ""},
+    )
 
 
 @login_required
@@ -98,14 +102,28 @@ def mark_all_notifications_read(request):
     return redirect("accounts:notifications")
 
 
-@superuser_required
-def people(request):
+def _people_page(request, *, person_form=None, person=None, open_drawer=""):
     rows = StudioProfile.objects.select_related("user").order_by("role", "user__email")
     role = request.GET.get("role")
     if role:
         rows = rows.filter(role=role)
     page = Paginator(rows, 20).get_page(request.GET.get("page"))
-    return render(request, "accounts/people.html", {"page": page, "role": role})
+    return render(
+        request,
+        "accounts/people.html",
+        {
+            "page": page,
+            "role": role,
+            "person_form": person_form,
+            "person": person,
+            "open_drawer": open_drawer,
+        },
+    )
+
+
+@superuser_required
+def people(request):
+    return _people_page(request)
 
 
 @superuser_required
@@ -140,4 +158,4 @@ def person_detail(request, pk):
             )
         messages.success(request, "Person updated.")
         return redirect("accounts:people")
-    return render(request, "accounts/person.html", {"form": form, "profile": profile})
+    return _people_page(request, person_form=form, person=profile, open_drawer="personDrawer")

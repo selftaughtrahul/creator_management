@@ -5,7 +5,10 @@
 {% block content %}
   <div class="page-head">
     <p>Status: {{ profile.get_status_display }}. Metrics come from accounts you connect, not from guesses.</p>
-    <a class="btn-line" href="{% url 'creators:documents' %}">Documents</a>
+    <div class="actions">
+      <button class="btn-accent" type="button" data-bs-toggle="offcanvas" data-bs-target="#profileDrawer">Edit profile</button>
+      <a class="btn-line" href="{% url 'creators:documents' %}">Documents</a>
+    </div>
   </div>
   <section class="stat-grid">
     <article class="stat"><span class="label">Followers</span><strong>{% if metrics.followers.value is not None %}{{ metrics.followers.value|intcomma }}{% else %}—{% endif %}</strong><em>{{ metrics.followers.source }}</em></article>
@@ -16,12 +19,5 @@
   {% if quality.missing %}
     <div class="notice">Missing or stale: {{ quality.missing|join:", " }}.</div>
   {% endif %}
-  <section class="panel stack-form">
-    <h2>Profile and permissions</h2>
-    <form method="post">
-      {% csrf_token %}
-      {% include "partials/form_fields.html" %}
-      <button class="btn-accent" type="submit">Save</button>
-    </form>
-  </section>
+  {% include "partials/side_form.html" with drawer_id="profileDrawer" drawer_title="Edit profile" drawer_form=form submit_label="Save" open_drawer=open_drawer %}
 {% endblock %}

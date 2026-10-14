@@ -31,21 +31,7 @@
   </section>
   <section class="panel mt-3">
     <h2>Creators</h2>
-    <form id="outreach-form" method="post" action="{% url 'campaigns:outreach' campaign.pk %}">
-      {% csrf_token %}
-      <div class="filter-bar">
-        <div class="field">
-          <label>Template</label>
-          {{ outreach_form.template }}
-        </div>
-        <div class="field">
-          <label>Follow up</label>
-          {{ outreach_form.follow_up_at }}
-        </div>
-        <input type="hidden" name="creator_ids" id="creatorIds" value="">
-        <button class="btn-accent" type="submit">Prepare invitations</button>
-      </div>
-    </form>
+    <button class="btn-accent" type="button" data-bs-toggle="offcanvas" data-bs-target="#outreachDrawer">Prepare invitations</button>
       <table class="data">
         <thead><tr><th></th><th>Creator</th><th>State</th><th>Followers</th><th>Engagement</th><th>Cost</th><th></th></tr></thead>
         <tbody>
@@ -58,18 +44,13 @@
               <td>{% if row.metrics.engagement.value is not None %}{{ row.metrics.engagement.value }}%{% else %}unavailable{% endif %}<div class="badge-source">{{ row.metrics.engagement.source }}</div></td>
               <td>
                 {% if row.membership.recorded_cost is not None %}{{ row.membership.recorded_cost }}{% else %}Unrecorded{% endif %}
-                <form method="post" action="{% url 'campaigns:cost' campaign.pk row.membership.creator_id %}">{% csrf_token %}<input type="number" step="0.01" name="recorded_cost" placeholder="Cost"><button class="btn-line" type="submit">Save</button></form>
+                <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#costDrawer" data-form-action="{% url 'campaigns:cost' campaign.pk row.membership.creator_id %}" data-drawer-title="Cost for {{ row.membership.creator }}">Record cost</button>
               </td>
               <td>
                 {% if row.membership.state != "assigned" %}
                   <form method="post" action="{% url 'campaigns:assign' campaign.pk row.membership.creator_id %}">{% csrf_token %}<button class="btn-line" type="submit">Assign</button></form>
                 {% endif %}
-                <form method="post" action="{% url 'campaigns:offer' campaign.pk row.membership.creator_id %}">
-                  {% csrf_token %}
-                  <input type="number" step="0.01" name="amount" placeholder="Offer">
-                  <input type="text" name="currency" value="INR">
-                  <button class="btn-line" type="submit">Propose</button>
-                </form>
+                <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#offerDrawer" data-form-action="{% url 'campaigns:offer' campaign.pk row.membership.creator_id %}" data-drawer-title="Offer for {{ row.membership.creator }}">Propose offer</button>
               </td>
             </tr>
           {% empty %}
@@ -87,16 +68,7 @@
           {% if invite.follow_up_at %} · follow-up {{ invite.follow_up_at }}{% endif %}
           {% if invite.last_error %}<span class="error-text">{{ invite.last_error }}</span>{% endif %}
         </p>
-        <form method="post" action="{% url 'campaigns:invitation_outcome' invite.pk %}" class="actions">
-          {% csrf_token %}
-          <select name="status">
-            <option value="responded">Responded</option>
-            <option value="accepted">Accepted</option>
-            <option value="rejected">Rejected</option>
-          </select>
-          <input type="text" name="note" placeholder="Note">
-          <button class="btn-line" type="submit">Record</button>
-        </form>
+        <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#outcomeDrawer" data-form-action="{% url 'campaigns:invitation_outcome' invite.pk %}" data-drawer-title="Outcome for {{ invite.creator }}">Record outcome</button>
       {% empty %}
         <p class="muted">None sent.</p>
       {% endfor %}
@@ -106,11 +78,7 @@
       {% for offer in offers %}
         <p>{{ offer.creator }} · {{ offer.amount }} {{ offer.currency }} · {{ offer.get_state_display }}</p>
         {% if offer.state != "accepted" and offer.state != "declined" %}
-          <form method="post" action="{% url 'campaigns:decide_offer' offer.pk %}" class="actions">
-            {% csrf_token %}
-            <button class="btn-accent" name="action" value="accept">Accept</button>
-            <button class="btn-line" name="action" value="decline">Decline</button>
-          </form>
+          <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#decideDrawer" data-form-action="{% url 'campaigns:decide_offer' offer.pk %}" data-drawer-title="Decide offer for {{ offer.creator }}">Decide offer</button>
         {% endif %}
       {% empty %}
         <p class="muted">None yet.</p>
@@ -123,10 +91,20 @@
       {% endfor %}
     </article>
   </section>
+  {% url 'campaigns:outreach' campaign.pk as outreach_action %}
+  {% include "partials/side_form.html" with drawer_id="outreachDrawer" drawer_title="Prepare invitations" drawer_form=outreach_form form_action=outreach_action form_id="outreach-form" submit_label="Prepare invitations" open_drawer=open_drawer %}
+  {% include "partials/side_form.html" with drawer_id="costDrawer" drawer_title="Record cost" drawer_form=cost_form action_drawer="1" submit_label="Save cost" open_drawer=open_drawer %}
+  {% include "partials/side_form.html" with drawer_id="offerDrawer" drawer_title="Propose offer" drawer_form=offer_form action_drawer="1" submit_label="Propose offer" open_drawer=open_drawer %}
+  {% include "partials/side_form.html" with drawer_id="outcomeDrawer" drawer_title="Record outcome" drawer_form=invitation_form action_drawer="1" submit_label="Record outcome" open_drawer=open_drawer %}
+  {% include "partials/side_form.html" with drawer_id="decideDrawer" drawer_title="Decide offer" action_drawer="1" submit_name="action" submit_value="accept" submit_label="Accept" secondary_name="action" secondary_value="decline" secondary_label="Decline" open_drawer=open_drawer %}
+  {% if edit_form %}
+    {% url 'campaigns:edit' campaign.pk as edit_action %}
+    {% include "partials/side_form.html" with drawer_id="campaignEditDrawer" drawer_title="Edit campaign" drawer_form=edit_form form_action=edit_action form_enctype="multipart/form-data" submit_label="Save campaign" open_drawer=open_drawer %}
+  {% endif %}
   <script>
     const boxes = document.querySelectorAll(".creator-box");
-    const hidden = document.getElementById("creatorIds");
-    const sync = () => { hidden.value = [...boxes].filter(box => box.checked).map(box => box.value).join(","); };
+    const hidden = document.getElementById("id_creator_ids");
+    const sync = () => { if (hidden) hidden.value = [...boxes].filter(box => box.checked).map(box => box.value).join(","); };
     boxes.forEach(box => box.addEventListener("change", sync));
   </script>
 {% endblock %}

@@ -1,6 +1,6 @@
 {% for field in form %}
   <div class="field">
-    {% if field.field.widget.input_type == "checkbox" or field.name == "niches" or field.name == "platforms" or field.name == "decision" %}
+    {% if field.field.widget.input_type == "checkbox" or field.name == "niches" or field.name == "platforms" or field.name == "permissions" or field.name == "decision" %}
       <label>{{ field.label }}</label>
       {{ field }}
     {% else %}

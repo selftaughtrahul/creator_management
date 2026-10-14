@@ -1,0 +1,48 @@
+<div class="offcanvas offcanvas-end campaign-drawer" tabindex="-1" id="{{ drawer_id }}" aria-labelledby="{{ drawer_id }}Label"{% if action_drawer %} data-action-drawer{% endif %}>
+  <div class="offcanvas-header">
+    <h2 id="{{ drawer_id }}Label" data-drawer-title>{{ drawer_title }}</h2>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <form method="{{ form_method|default:'post' }}"{% if form_action %} action="{{ form_action }}"{% endif %}{% if form_id %} id="{{ form_id }}"{% endif %}{% if form_enctype %} enctype="{{ form_enctype }}"{% endif %}>
+      {% if form_method != "get" %}{% csrf_token %}{% endif %}
+      {% if keep_campaign %}<input type="hidden" name="from_campaign" value="1">{% endif %}
+      {% if hidden_next %}<input type="hidden" name="next" value="{{ hidden_next }}">{% endif %}
+      {% if hidden_action %}<input type="hidden" name="action" value="{{ hidden_action }}">{% endif %}
+      {% if drawer_form %}{% include "partials/form_fields.html" with form=drawer_form %}{% endif %}
+      {% if platform_field %}
+        <div class="field">
+          <label for="{{ drawer_id }}Platform">Platform</label>
+          <select id="{{ drawer_id }}Platform" name="platform">
+            {% for key, label in platform_catalog.items %}
+              <option value="{{ key }}">{{ label.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endif %}
+      {% if note_field %}
+        <div class="field">
+          <label for="{{ drawer_id }}Note">Note</label>
+          <input id="{{ drawer_id }}Note" type="text" name="note" placeholder="Optional note">
+        </div>
+      {% endif %}
+      <div class="actions">
+        <button class="btn-accent" type="submit"{% if submit_name %} name="{{ submit_name }}" value="{{ submit_value|default:'1' }}"{% endif %}>{{ submit_label|default:"Save" }}</button>
+        {% if secondary_label %}
+          <button class="btn-line" type="submit" name="{{ secondary_name }}" value="{{ secondary_value }}">{{ secondary_label }}</button>
+        {% endif %}
+        <button class="btn-line" type="button" data-bs-dismiss="offcanvas">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% if open_drawer == drawer_id %}
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const drawer = document.getElementById("{{ drawer_id }}");
+      if (drawer && window.bootstrap) {
+        window.bootstrap.Offcanvas.getOrCreateInstance(drawer).show();
+      }
+    });
+  </script>
+{% endif %}

@@ -106,7 +106,7 @@ def campaign_edit(request, pk):
         _store_documents(campaign, form.cleaned_data.get("documents") or [], request.user)
         messages.success(request, "Campaign updated.")
         return redirect("campaigns:detail", pk=campaign.pk)
-    return render(request, "campaigns/form.html", {"form": form, "title": "Edit campaign", "campaign": campaign})
+    return _render_campaign_detail(request, campaign, edit_form=form, open_drawer="campaignEditDrawer")
 
 
 def _store_documents(campaign, files, user):
@@ -120,37 +120,39 @@ def _store_documents(campaign, files, user):
         )
 
 
-@permission_required("campaigns")
-def campaign_detail(request, pk):
-    campaign = get_object_or_404(Campaign.objects.select_related("niche", "subcategory", "owner"), pk=pk)
+def _render_campaign_detail(request, campaign, *, edit_form=None, open_drawer=""):
     memberships = campaign.memberships.select_related("creator")
     rows = []
     for membership in memberships:
         match = match_campaign(campaign, membership.creator)
         rows.append({"membership": membership, **match})
-    invitations = campaign.invitations.select_related("creator")
-    offers = campaign.offers.select_related("creator")
-    feedback = campaign.feedback.select_related("creator", "user")
-    spend = campaign.recorded_spend()
-    remaining = campaign.remaining_budget()
     return render(
         request,
         "campaigns/detail.html",
         {
             "campaign": campaign,
             "rows": rows,
-            "invitations": invitations,
-            "offers": offers,
-            "feedback": feedback,
-            "spend": spend,
-            "remaining": remaining,
+            "invitations": campaign.invitations.select_related("creator"),
+            "offers": campaign.offers.select_related("creator"),
+            "feedback": campaign.feedback.select_related("creator", "user"),
+            "spend": campaign.recorded_spend(),
+            "remaining": campaign.remaining_budget(),
             "unrecorded": memberships.filter(recorded_cost__isnull=True).count(),
             "outreach_form": OutreachForm(initial={"creator_ids": ""}),
             "templates": MessageTemplate.objects.all(),
             "offer_form": OfferForm(),
             "cost_form": MembershipCostForm(),
+            "invitation_form": InvitationOutcomeForm(),
+            "edit_form": edit_form,
+            "open_drawer": open_drawer,
         },
     )
+
+
+@permission_required("campaigns")
+def campaign_detail(request, pk):
+    campaign = get_object_or_404(Campaign.objects.select_related("niche", "subcategory", "owner"), pk=pk)
+    return _render_campaign_detail(request, campaign)
 
 
 @permission_required("campaigns")
@@ -236,6 +238,7 @@ def discover(request, pk=None):
             "results": results,
             "campaign": campaign,
             "feedback_form": FeedbackForm(),
+            "open_drawer": "discoverDrawer" if form.errors else "",
         },
     )
 

@@ -27,4 +27,8 @@
     </table>
     {% include "partials/pager.html" %}
   </section>
+  {% if person_form %}
+    {% url 'accounts:person' person.pk as person_action %}
+    {% include "partials/side_form.html" with drawer_id="personDrawer" drawer_title=person.user.email drawer_form=person_form form_action=person_action submit_label="Save" open_drawer=open_drawer %}
+  {% endif %}
 {% endblock %}

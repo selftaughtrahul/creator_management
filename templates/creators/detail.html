@@ -37,33 +37,26 @@
   <section class="two-col">
     <article class="panel">
       <h2>Classify</h2>
-      <form method="post" action="{% url 'creators:classify' creator.pk %}" class="actions">
-        {% csrf_token %}
-        <button class="btn-line" name="method" value="rules" type="submit">Run keyword rules</button>
-        <button class="btn-accent" name="method" value="anthropic" type="submit">Ask Claude for a category</button>
-      </form>
+      <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#classifyDrawer">Classify</button>
       <p class="kpi-note">Claude may only suggest a category from profile text. It does not return follower counts.</p>
       {% for row in classifications %}
         <p>{{ row.created_at|date:"d M Y H:i" }} · {{ row.category.name|default:"unclassified" }} · {{ row.get_method_display }} · {{ row.get_provenance_display }}{% if row.needs_review %} · needs review{% endif %}<br><span class="muted">{{ row.explanation }}</span></p>
       {% endfor %}
-      <h3>Manual review</h3>
-      <form method="post" action="{% url 'creators:review' creator.pk %}">
-        {% csrf_token %}
-        {% include "partials/form_fields.html" with form=review_form %}
-        <button class="btn-accent" type="submit">Save verified label</button>
-      </form>
+      <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#reviewDrawer">Save verified label</button>
     </article>
     <article class="panel">
       <h2>Enrichment</h2>
-      <form method="post" action="{% url 'creators:enrich' creator.pk %}">
-        {% csrf_token %}
-        {% include "partials/form_fields.html" with form=enrich_form %}
-        <button class="btn-line" type="submit">Queue sync</button>
-      </form>
+      <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#enrichDrawer">Queue sync</button>
       <p class="kpi-note">Jobs call the existing account sync only when this creator has connected a live token. Otherwise they are blocked.</p>
       {% for job in jobs %}
         <p>{{ job.platform }} · {{ job.get_status_display }} · attempts {{ job.attempts }}{% if job.last_error %} · {{ job.last_error }}{% endif %}</p>
       {% endfor %}
     </article>
   </section>
+  {% url 'creators:classify' creator.pk as classify_action %}
+  {% url 'creators:review' creator.pk as review_action %}
+  {% url 'creators:enrich' creator.pk as enrich_action %}
+  {% include "partials/side_form.html" with drawer_id="classifyDrawer" drawer_title="Classify" form_action=classify_action submit_name="method" submit_value="rules" submit_label="Run keyword rules" secondary_name="method" secondary_value="anthropic" secondary_label="Ask Claude" open_drawer=open_drawer %}
+  {% include "partials/side_form.html" with drawer_id="reviewDrawer" drawer_title="Verified label" drawer_form=review_form form_action=review_action submit_label="Save verified label" open_drawer=open_drawer %}
+  {% include "partials/side_form.html" with drawer_id="enrichDrawer" drawer_title="Queue sync" drawer_form=enrich_form form_action=enrich_action submit_label="Queue sync" open_drawer=open_drawer %}
 {% endblock %}

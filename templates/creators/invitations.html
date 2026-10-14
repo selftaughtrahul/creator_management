@@ -10,12 +10,7 @@
       <p class="caption">{{ invite.body }}</p>
       <p>Status: {{ invite.get_status_display }} · {{ invite.created_at|date:"d M Y H:i" }}</p>
       {% if invite.status == "sent" or invite.status == "stored_locally" or invite.status == "confirmed" or invite.status == "draft" or invite.status == "responded" %}
-        <form method="post" action="{% url 'creators:respond_invitation' invite.pk %}" class="actions">
-          {% csrf_token %}
-          <input type="text" name="note" placeholder="Optional note">
-          <button class="btn-accent" name="decision" value="accept">Accept</button>
-          <button class="btn-line" name="decision" value="reject">Reject</button>
-        </form>
+        <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#respondDrawer" data-form-action="{% url 'creators:respond_invitation' invite.pk %}" data-drawer-title="Respond to {{ invite.campaign.name }}">Respond</button>
       {% endif %}
       <p><a href="{% url 'creators:my_campaign' invite.campaign_id %}">Campaign details</a></p>
     </section>
@@ -25,4 +20,5 @@
       <p>When a campaign team invites you, it will show here and in notifications.</p>
     </section>
   {% endfor %}
+  {% include "partials/side_form.html" with drawer_id="respondDrawer" drawer_title="Respond" action_drawer="1" note_field="1" submit_name="decision" submit_value="accept" submit_label="Accept" secondary_name="decision" secondary_value="reject" secondary_label="Reject" %}
 {% endblock %}

@@ -2,24 +2,24 @@
 {% block title %}Documents · Awisee{% endblock %}
 {% block page_heading %}Documents{% endblock %}
 {% block content %}
-  <section class="panel stack-form">
-    <h2>Upload</h2>
-    <form method="post" enctype="multipart/form-data">
-      {% csrf_token %}
-      {% include "partials/form_fields.html" %}
-      <button class="btn-accent" type="submit">Upload</button>
-    </form>
-  </section>
-  <section class="panel mt-3">
-    <h2>Your files</h2>
-    {% if documents %}
-      <ul>
+  <div class="page-head">
+    <p>Files you upload stay on your creator profile.</p>
+    <a class="btn-accent" href="{% url 'creators:documents' %}?new=1">Upload</a>
+  </div>
+  <section class="panel">
+    <table class="data">
+      <thead><tr><th>Title</th><th>Uploaded</th></tr></thead>
+      <tbody>
         {% for doc in documents %}
-          <li><a href="{{ doc.file.url }}">{{ doc.title }}</a> · {{ doc.uploaded_at|date:"d M Y" }}</li>
+          <tr>
+            <td><a href="{{ doc.file.url }}">{{ doc.title }}</a></td>
+            <td>{{ doc.uploaded_at|date:"d M Y" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="2">None uploaded yet.</td></tr>
         {% endfor %}
-      </ul>
-    {% else %}
-      <p class="muted">None uploaded yet.</p>
-    {% endif %}
+      </tbody>
+    </table>
   </section>
+  {% include "partials/side_form.html" with drawer_id="documentDrawer" drawer_title="Upload document" drawer_form=form form_enctype="multipart/form-data" submit_label="Upload" open_drawer=open_drawer %}
 {% endblock %}

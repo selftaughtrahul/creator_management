@@ -305,6 +305,25 @@ button, input, textarea, select { font-family: inherit; }
 }
 .campaign-drawer h2 { font-size: 28px; margin: 0; }
 .campaign-drawer .offcanvas-body { padding: 8px 20px 28px; }
+.campaign-drawer input[type="text"],
+.campaign-drawer input[type="email"],
+.campaign-drawer input[type="number"],
+.campaign-drawer input[type="password"],
+.campaign-drawer input[type="url"],
+.campaign-drawer input[type="datetime-local"],
+.campaign-drawer input[type="file"],
+.campaign-drawer textarea,
+.campaign-drawer select {
+  width: 100%;
+  border: 1px solid #d6d3d1;
+  background: white;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 16px;
+}
+.campaign-drawer textarea { min-height: 96px; }
+.campaign-drawer input[type="checkbox"],
+.campaign-drawer input[type="radio"] { width: auto; }
 .discover-drawer {
   width: min(420px, 100vw);
   background: #fffdf8;

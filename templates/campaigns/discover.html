@@ -4,13 +4,10 @@
 {% block page_heading %}Creator discovery{% endblock %}
 {% block content %}
   <p class="muted">{% if campaign %}Matching stored creators to {{ campaign.name }}.{% else %}Search opted-in creator profiles. Metrics are labeled with their source.{% endif %}</p>
-  <section class="panel">
-    <form method="get">
-      {% if campaign %}<input type="hidden" name="from_campaign" value="1">{% endif %}
-      {% include "partials/form_fields.html" %}
-      <button class="btn-accent" name="run" value="1" type="submit">Search</button>
-    </form>
-  </section>
+  <div class="page-head">
+    <p class="muted">Search stays on this page. Open the form to change the query.</p>
+    <button class="btn-accent" type="button" data-bs-toggle="offcanvas" data-bs-target="#discoverDrawer">Search</button>
+  </div>
   {% if results %}
     <p class="mt-3">Parser: {{ results.parsed.parser|default:"campaign" }}. {{ results.total }} opted-in creator{{ results.total|pluralize }} after filters.</p>
     <p class="muted">Criteria: location {{ results.criteria.location|default:"any" }}, followers {{ results.criteria.follower_min|default:"—" }}–{{ results.criteria.follower_max|default:"—" }}, platforms {{ results.criteria.platforms|join:", "|default:"any" }}, niche {{ results.criteria.niche|default:"any" }}.</p>
@@ -18,16 +15,7 @@
       <section class="panel empty">
         <h2>No matching creators in the database</h2>
         <p>This app does not invent profiles. Queue enrichment for creators who already registered and connected an account, or invite more creators to register.</p>
-        <form method="post" action="{% url 'campaigns:search_enrich' %}">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <select name="platform">
-            {% for key, label in platform_catalog.items %}
-              <option value="{{ key }}">{{ label.label }}</option>
-            {% endfor %}
-          </select>
-          <button class="btn-line" type="submit">Request collection (creates a job, not a fake profile)</button>
-        </form>
+        <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#enrichSearchDrawer">Request collection</button>
       </section>
     {% else %}
       {% for row in results.page %}
@@ -57,19 +45,22 @@
           {% if row.missing %}<p class="notice">Missing: {{ row.missing|join:", " }}</p>{% endif %}
           <ul class="reason-list">{% for reason in row.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
           {% if campaign %}
-            <form method="post" action="{% url 'campaigns:feedback_submit' campaign.pk row.creator.pk %}">
-              {% csrf_token %}
-              <input type="hidden" name="next" value="{{ request.get_full_path }}">
-              <label><input type="radio" name="decision" value="yes" required> Yes</label>
-              <label><input type="radio" name="decision" value="no"> No</label>
-              <label><input type="radio" name="decision" value="needs_review"> Needs review</label>
-              <input type="text" name="comment" placeholder="Comment">
-              <button class="btn-line" type="submit">Save feedback</button>
-            </form>
+            <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#feedbackDrawer" data-form-action="{% url 'campaigns:feedback_submit' campaign.pk row.creator.pk %}" data-drawer-title="Feedback for {{ row.creator.display_name }}">Save feedback</button>
           {% endif %}
         </article>
       {% endfor %}
       {% include "partials/pager.html" with page=results.page %}
     {% endif %}
   {% endif %}
+  {% if campaign %}
+    {% url 'campaigns:campaign_discover' campaign.pk as discover_action %}
+  {% else %}
+    {% url 'campaigns:discover' as discover_action %}
+  {% endif %}
+  {% include "partials/side_form.html" with drawer_id="discoverDrawer" drawer_title="Search creators" drawer_form=form form_method="get" form_action=discover_action keep_campaign=campaign submit_name="run" submit_value="1" submit_label="Search" open_drawer=open_drawer %}
+  {% if campaign %}
+    {% include "partials/side_form.html" with drawer_id="feedbackDrawer" drawer_title="Save feedback" drawer_form=feedback_form action_drawer="1" hidden_next=request.get_full_path submit_label="Save feedback" open_drawer=open_drawer %}
+  {% endif %}
+  {% url 'campaigns:search_enrich' as enrich_action %}
+  {% include "partials/side_form.html" with drawer_id="enrichSearchDrawer" drawer_title="Request collection" form_action=enrich_action hidden_next=request.get_full_path platform_field="1" submit_label="Queue a job" open_drawer=open_drawer %}
 {% endblock %}
