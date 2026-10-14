@@ -1,0 +1,15 @@
+{% extends "marketing/legal.html" %}
+{% block title %}Privacy policy · Awisee{% endblock %}
+{% block heading %}Privacy policy{% endblock %}
+{% block legal %}
+  <p>Awisee is a content studio. This page explains what the app stores when you create an account and connect Instagram, Facebook, YouTube, or X.</p>
+  <h2>Account</h2>
+  <p>If you sign up with email, Awisee stores your name, email address, and password hash, and sends a verification message before you can log in. If you sign in with Google, Awisee stores the name and email address Google returns.</p>
+  <h2>Connected networks</h2>
+  <p>When you authorize a network, Awisee stores the access token that network issues, the account name and username, follower counts, and recent posts or videos. Those records stay in the Awisee database so the studio can show them later. Disconnecting a network removes that account’s saved token and fetched records.</p>
+  <h2>Who can see it</h2>
+  <p>Your studio is visible to the account you signed in with. Awisee does not sell this data and does not post to a network unless you later add a feature that asks for that permission.</p>
+  <h2>Removing your data</h2>
+  <p>Disconnect a network from the Connections page, or follow the <a href="{% url 'accounts:data_deletion' %}">data deletion</a> instructions to remove the Awisee account.</p>
+  <p class="muted">Last updated 14 October 2026.</p>
+{% endblock %}

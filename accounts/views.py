@@ -11,6 +11,14 @@ def home(request):
     return render(request, "marketing/home.html")
 
 
+def privacy(request):
+    return render(request, "marketing/privacy.html")
+
+
+def data_deletion(request):
+    return render(request, "marketing/data_deletion.html")
+
+
 @login_required
 def profile(request):
     form = ProfileForm(request.POST or None, instance=request.user)

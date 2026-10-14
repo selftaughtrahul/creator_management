@@ -56,3 +56,12 @@ class EmailSignupTests(TestCase):
             )
         self.assertTrue(confirmed.wsgi_request.user.is_authenticated)
         self.assertContains(confirmed, "Studio overview")
+
+
+class LegalPageTests(TestCase):
+    def test_privacy_and_deletion_pages_are_public(self):
+        privacy = self.client.get(reverse("accounts:privacy"))
+        deletion = self.client.get(reverse("accounts:data_deletion"))
+        self.assertContains(privacy, "Privacy policy")
+        self.assertContains(privacy, "Connected networks")
+        self.assertContains(deletion, "Data deletion")
