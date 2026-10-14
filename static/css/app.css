@@ -229,6 +229,21 @@ button, input, textarea, select { font-family: inherit; }
 .legal p { color: var(--muted); font-size: 17px; }
 
 .app-shell { min-height: 100vh; display: grid; grid-template-columns: 250px 1fr; }
+.app-shell.nav-collapsed { grid-template-columns: 76px 1fr; }
+.app-shell.nav-collapsed .sidebar { padding-left: 10px; padding-right: 10px; }
+.app-shell.nav-collapsed .sidebar .side-brand,
+.app-shell.nav-collapsed .sidebar .side-links a,
+.app-shell.nav-collapsed .sidebar .side-foot a,
+.app-shell.nav-collapsed .sidebar .side-foot button {
+  font-size: 0;
+  justify-content: center;
+  gap: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+.app-shell.nav-collapsed .sidebar .bi,
+.app-shell.nav-collapsed .sidebar .brand-mark { font-size: 18px; }
+.app-shell.nav-collapsed .sidebar .side-label { display: none; }
 .sidebar, .offcanvas-nav {
   background: var(--sidebar);
   color: var(--sidebar-text);
@@ -272,7 +287,7 @@ button, input, textarea, select { font-family: inherit; }
   background: rgba(246, 241, 232, 0.9);
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 1060;
 }
 .topbar h1 { font-size: 28px; margin: 0; }
 .topbar .who { color: var(--muted); }
