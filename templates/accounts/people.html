@@ -15,7 +15,7 @@
       <tbody>
         {% for row in page %}
           <tr>
-            <td>{{ row.user.get_full_name|default:row.user.email }}<div class="badge-source">{{ row.user.email }}</div></td>
+            <td>{{ row.user.get_full_name}}<div class="badge-source">{{ row.user.email }}</div></td>
             <td>{{ row.get_role_display }}</td>
             <td>{{ row.user.email }}</td>
             <td>{% if row.user.is_active %}Yes{% else %}No{% endif %}</td>
