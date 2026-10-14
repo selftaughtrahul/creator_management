@@ -22,6 +22,7 @@ urlpatterns = [
     path("studio/campaigns/<int:pk>/feedback/<int:creator_id>/", views.submit_feedback, name="feedback_submit"),
     path("studio/feedback/", views.feedback_list, name="feedback"),
     path("studio/templates/", views.template_list, name="templates"),
+    path("studio/templates/<int:pk>/edit/", views.template_edit, name="template_edit"),
     path("studio/campaigns/<int:pk>/outreach/", views.prepare_outreach, name="outreach"),
     path("studio/campaigns/<int:pk>/outreach/confirm/", views.confirm_outreach, name="confirm_outreach"),
     path("studio/invitations/<int:pk>/outcome/", views.invitation_outcome, name="invitation_outcome"),

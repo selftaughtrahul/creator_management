@@ -191,6 +191,31 @@ class CampaignAndSearchTests(TestCase):
         response = self.client.get(reverse("creators:my_campaign", args=[campaign.pk]))
         self.assertEqual(response.status_code, 404)
 
+    def test_templates_list_all_and_save_from_the_page(self):
+        first = MessageTemplate.objects.create(name="Launch note", subject="Hello {creator_name}", body="Join {campaign_name}.")
+        MessageTemplate.objects.create(name="Follow up", subject="Checking in", body="Still open.")
+        page = self.client.get(reverse("campaigns:templates"))
+        self.assertContains(page, "Launch note")
+        self.assertContains(page, "Follow up")
+        self.assertNotContains(page, 'id="templateDrawer" class="offcanvas offcanvas-end campaign-drawer show"')
+        created = self.client.post(
+            reverse("campaigns:templates"),
+            {"name": "Reminder", "subject": "One more note", "body": "Hi {creator_name}"},
+        )
+        self.assertRedirects(created, reverse("campaigns:templates"))
+        self.assertEqual(MessageTemplate.objects.count(), 3)
+        edited = self.client.post(
+            reverse("campaigns:template_edit", args=[first.pk]),
+            {"name": "Launch note revised", "subject": first.subject, "body": first.body},
+        )
+        self.assertRedirects(edited, reverse("campaigns:templates"))
+        first.refresh_from_db()
+        self.assertEqual(first.name, "Launch note revised")
+        editor = self.client.get(reverse("campaigns:template_edit", args=[first.pk]))
+        self.assertContains(editor, "Edit template")
+        self.assertContains(editor, "Launch note revised")
+        self.assertContains(editor, "Follow up")
+
     def test_dashboard_counts_match_rows(self):
         Campaign.objects.create(owner=self.team, name="Live", status=Campaign.Status.ACTIVE, budget=1000)
         response = self.client.get(reverse("campaigns:dashboard"))

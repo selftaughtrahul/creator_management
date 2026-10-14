@@ -311,6 +311,19 @@ def feedback_list(request):
     )
 
 
+def _template_page(request, form, *, editing=None, open_form=False):
+    return render(
+        request,
+        "campaigns/templates.html",
+        {
+            "form": form,
+            "templates": MessageTemplate.objects.all(),
+            "editing": editing,
+            "open_form": open_form,
+        },
+    )
+
+
 @permission_required("templates")
 def template_list(request):
     form = TemplateForm(request.POST or None)
@@ -320,11 +333,22 @@ def template_list(request):
         template.save()
         messages.success(request, "Template saved.")
         return redirect("campaigns:templates")
-    return render(
+    return _template_page(
         request,
-        "campaigns/templates.html",
-        {"form": form, "templates": MessageTemplate.objects.all()},
+        form,
+        open_form=request.method == "POST" or request.GET.get("new") == "1",
     )
+
+
+@permission_required("templates")
+def template_edit(request, pk):
+    template = get_object_or_404(MessageTemplate, pk=pk)
+    form = TemplateForm(request.POST or None, instance=template)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Template updated.")
+        return redirect("campaigns:templates")
+    return _template_page(request, form, editing=template, open_form=True)
 
 
 @permission_required("outreach")
