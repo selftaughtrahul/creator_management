@@ -1,19 +1,19 @@
-from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 
+from accounts.permissions import creator_required
 from analytics.services import build_content, build_dashboard, build_platform
 from networks.models import ContentItem, SocialAccount
 from networks.platforms import PLATFORMS
 
 
-@login_required
+@creator_required
 def dashboard(request):
     return render(request, "app/dashboard.html", build_dashboard(request.user))
 
 
-@login_required
+@creator_required
 def platform(request, platform):
     if platform not in PLATFORMS:
         raise Http404
@@ -25,7 +25,7 @@ def platform(request, platform):
     return render(request, "app/platform.html", context)
 
 
-@login_required
+@creator_required
 def content(request, pk):
     item = get_object_or_404(
         ContentItem.objects.select_related("account"),

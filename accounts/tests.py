@@ -8,6 +8,9 @@ from django.urls import reverse
 
 from allauth.account.models import EmailAddress
 
+from accounts.models import Notification, StudioProfile
+from creators.tests import make_creator, make_user
+
 User = get_user_model()
 
 
@@ -55,7 +58,55 @@ class EmailSignupTests(TestCase):
                 follow=True,
             )
         self.assertTrue(confirmed.wsgi_request.user.is_authenticated)
-        self.assertContains(confirmed, "Studio overview")
+        self.assertEqual(user.studio.role, "employee")
+        self.assertContains(confirmed, "Campaign studio")
+
+
+class RoleAccessTests(TestCase):
+    def test_employee_without_discover_cannot_open_discover(self):
+        employee = make_user("emp@example.com", "emp", role=StudioProfile.Role.EMPLOYEE)
+        employee.studio.permissions = ["studio_dashboard", "campaigns"]
+        employee.studio.save()
+        self.client.force_login(employee)
+        self.assertEqual(self.client.get(reverse("campaigns:discover")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("campaigns:list")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("accounts:people")).status_code, 403)
+
+    def test_admin_can_manage_people_and_see_creators(self):
+        admin = make_user("boss@example.com", "boss", role=StudioProfile.Role.ADMIN)
+        make_creator("c@example.com", "creat")
+        self.client.force_login(admin)
+        people = self.client.get(reverse("accounts:people"))
+        self.assertContains(people, "People")
+        directory = self.client.get(reverse("creators:directory"))
+        self.assertContains(directory, "creat")
+
+    def test_creator_accepts_invitation_and_notifies_staff(self):
+        from campaigns.models import Campaign, Invitation
+
+        admin = make_user("lead2@example.com", "lead2", role=StudioProfile.Role.ADMIN)
+        creator = make_creator("invited@example.com", "invited")
+        campaign = Campaign.objects.create(owner=admin, name="Spring")
+        invitation = Invitation.objects.create(
+            campaign=campaign,
+            creator=creator,
+            to_email=creator.user.email,
+            subject="Join Spring",
+            body="Please join",
+            status=Invitation.Status.STORED_LOCALLY,
+            created_by=admin,
+        )
+        self.client.force_login(creator.user)
+        response = self.client.post(
+            reverse("creators:respond_invitation", args=[invitation.pk]),
+            {"decision": "accept"},
+        )
+        self.assertEqual(response.status_code, 302)
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, Invitation.Status.ACCEPTED)
+        self.assertTrue(
+            Notification.objects.filter(user=admin, kind=Notification.Kind.INVITATION).exists()
+        )
 
 
 class LegalPageTests(TestCase):

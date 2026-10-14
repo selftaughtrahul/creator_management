@@ -1,0 +1,28 @@
+{% extends "app/base.html" %}
+{% block title %}Invitations · Awisee{% endblock %}
+{% block page_heading %}Invitations{% endblock %}
+{% block content %}
+  <p class="muted">Campaign invitations sent to you. Accepting shortlists you on the campaign and notifies staff.</p>
+  {% for invite in invitations %}
+    <section class="panel mt-3">
+      <h2>{{ invite.campaign.name }}</h2>
+      <p><strong>{{ invite.subject }}</strong></p>
+      <p class="caption">{{ invite.body }}</p>
+      <p>Status: {{ invite.get_status_display }} · {{ invite.created_at|date:"d M Y H:i" }}</p>
+      {% if invite.status == "sent" or invite.status == "stored_locally" or invite.status == "confirmed" or invite.status == "draft" or invite.status == "responded" %}
+        <form method="post" action="{% url 'creators:respond_invitation' invite.pk %}" class="actions">
+          {% csrf_token %}
+          <input type="text" name="note" placeholder="Optional note">
+          <button class="btn-accent" name="decision" value="accept">Accept</button>
+          <button class="btn-line" name="decision" value="reject">Reject</button>
+        </form>
+      {% endif %}
+      <p><a href="{% url 'creators:my_campaign' invite.campaign_id %}">Campaign details</a></p>
+    </section>
+  {% empty %}
+    <section class="panel empty">
+      <h2>No invitations</h2>
+      <p>When a campaign team invites you, it will show here and in notifications.</p>
+    </section>
+  {% endfor %}
+{% endblock %}

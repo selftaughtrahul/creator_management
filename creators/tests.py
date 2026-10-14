@@ -26,7 +26,7 @@ from networks.models import ContentItem, MetricSnapshot, SocialAccount
 User = get_user_model()
 
 
-def make_user(email, username, role=StudioProfile.Role.TEAM):
+def make_user(email, username, role=StudioProfile.Role.ADMIN):
     user = User.objects.create_user(username=username, email=email, password="Northline-Studio-2026!")
     EmailAddress.objects.create(user=user, email=email, verified=True, primary=True)
     StudioProfile.objects.update_or_create(user=user, defaults={"role": role})

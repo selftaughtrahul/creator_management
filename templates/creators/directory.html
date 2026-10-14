@@ -1,0 +1,29 @@
+{% extends "app/base.html" %}
+{% load humanize %}
+{% block title %}Creators · Awisee{% endblock %}
+{% block page_heading %}Creators{% endblock %}
+{% block content %}
+  <form class="filter-bar" method="get">
+    <div class="field"><label>Search</label><input type="text" name="q" value="{{ q }}" placeholder="Name"></div>
+    <button class="btn-line" type="submit">Filter</button>
+  </form>
+  <section class="panel">
+    <table class="data">
+      <thead><tr><th>Creator</th><th>Location</th><th>Followers</th><th>Engagement</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for row in cards %}
+          <tr>
+            <td><a href="{% url 'creators:detail' row.creator.pk %}">{{ row.creator.display_name }}</a><div class="badge-source">{{ row.creator.user.email }}</div></td>
+            <td>{{ row.metrics.location.value|default:"unavailable" }}<div class="badge-source">{{ row.metrics.location.source }}</div></td>
+            <td>{% if row.metrics.followers.value is not None %}{{ row.metrics.followers.value|intcomma }}{% else %}unavailable{% endif %}<div class="badge-source">{{ row.metrics.followers.source }}</div></td>
+            <td>{% if row.metrics.engagement.value is not None %}{{ row.metrics.engagement.value }}%{% else %}unavailable{% endif %}<div class="badge-source">{{ row.metrics.engagement.source }}</div></td>
+            <td>{{ row.creator.get_status_display }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">No creator profiles yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% include "partials/pager.html" %}
+  </section>
+{% endblock %}

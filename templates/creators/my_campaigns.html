@@ -2,25 +2,38 @@
 {% block title %}My campaigns · Awisee{% endblock %}
 {% block page_heading %}My campaigns{% endblock %}
 {% block content %}
-  {% if not memberships %}
-    <section class="panel empty">
-      <h2>No assigned campaigns</h2>
-      <p>When a team adds you to a campaign, it will show here.</p>
-    </section>
-  {% else %}
-    <section class="panel">
-      <table class="data">
-        <thead><tr><th>Campaign</th><th>State</th><th>Updated</th></tr></thead>
-        <tbody>
-          {% for row in memberships %}
-            <tr>
-              <td><a href="{% url 'creators:my_campaign' row.campaign_id %}">{{ row.campaign.name }}</a></td>
-              <td>{{ row.get_state_display }}</td>
-              <td>{{ row.updated_at|date:"d M Y" }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
-  {% endif %}
+  <section class="panel">
+    <h2>Assigned or shortlisted</h2>
+    <table class="data">
+      <thead><tr><th>Campaign</th><th>State</th><th>Updated</th></tr></thead>
+      <tbody>
+        {% for row in memberships %}
+          <tr>
+            <td><a href="{% url 'creators:my_campaign' row.campaign_id %}">{{ row.campaign.name }}</a></td>
+            <td>{{ row.get_state_display }}</td>
+            <td>{{ row.updated_at|date:"d M Y" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3">None yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <section class="panel mt-3">
+    <h2>Invitation history</h2>
+    <table class="data">
+      <thead><tr><th>Campaign</th><th>Status</th><th>When</th></tr></thead>
+      <tbody>
+        {% for invite in invitations %}
+          <tr>
+            <td><a href="{% url 'creators:my_campaign' invite.campaign_id %}">{{ invite.campaign.name }}</a></td>
+            <td>{{ invite.get_status_display }}</td>
+            <td>{{ invite.created_at|date:"d M Y H:i" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3">None yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
 {% endblock %}

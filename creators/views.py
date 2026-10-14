@@ -6,7 +6,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from accounts.models import StudioProfile
-from accounts.permissions import creator_required, team_required
+from accounts.permissions import creator_required, permission_required
+from accounts.utils import unique_username
 from creators.classify import classify_creator
 from creators.evaluation import evaluate_labels
 from creators.forms import (
@@ -40,9 +41,8 @@ def join(request):
         email = form.cleaned_data["email"]
         name = form.cleaned_data["full_name"].strip()
         first, _, last = name.partition(" ")
-        username = _unique_username(email)
         user = User.objects.create_user(
-            username=username,
+            username=unique_username(email),
             email=email,
             password=form.cleaned_data["password1"],
             first_name=first,
@@ -111,24 +111,33 @@ def documents(request):
 def my_campaigns(request):
     profile = request.user.creator_profile
     memberships = profile.campaign_memberships.select_related("campaign", "campaign__niche")
-    return render(request, "creators/my_campaigns.html", {"memberships": memberships})
+    invitations = profile.invitations.select_related("campaign")
+    return render(
+        request,
+        "creators/my_campaigns.html",
+        {"memberships": memberships, "invitations": invitations},
+    )
 
 
 @creator_required
 def my_campaign(request, pk):
     from campaigns.forms import CounterOfferForm
-    from campaigns.models import CampaignCreator, Offer
+    from campaigns.models import Campaign, CampaignCreator, Offer
 
     profile = request.user.creator_profile
-    membership = get_object_or_404(
-        CampaignCreator.objects.select_related("campaign"),
-        campaign_id=pk,
-        creator=profile,
-    )
+    campaign = get_object_or_404(Campaign, pk=pk)
+    membership = CampaignCreator.objects.filter(campaign=campaign, creator=profile).first()
+    invited = profile.invitations.filter(campaign=campaign).exists()
+    if not membership and not invited:
+        from django.http import Http404
+
+        raise Http404
     form = CounterOfferForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        Offer.objects.create(
-            campaign=membership.campaign,
+    if request.method == "POST" and request.POST.get("action") == "counter" and form.is_valid():
+        from accounts.notify import notify_staff_offer_response
+
+        offer = Offer.objects.create(
+            campaign=campaign,
             creator=profile,
             amount=form.cleaned_data["amount"],
             currency=form.cleaned_data["currency"],
@@ -136,16 +145,17 @@ def my_campaign(request, pk):
             state=Offer.State.COUNTERED,
             created_by=request.user,
         )
-        messages.success(request, "Counteroffer recorded. A team member still has to accept commercial terms.")
+        notify_staff_offer_response(offer)
+        messages.success(request, "Counteroffer sent. Admins and employees will be notified.")
         return redirect("creators:my_campaign", pk=pk)
-    offers = Offer.objects.filter(campaign=membership.campaign, creator=profile)
-    invitations = profile.invitations.filter(campaign=membership.campaign)
+    offers = Offer.objects.filter(campaign=campaign, creator=profile)
+    invitations = profile.invitations.filter(campaign=campaign)
     return render(
         request,
         "creators/my_campaign.html",
         {
             "membership": membership,
-            "campaign": membership.campaign,
+            "campaign": campaign,
             "offers": offers,
             "invitations": invitations,
             "form": form,
@@ -153,7 +163,69 @@ def my_campaign(request, pk):
     )
 
 
-@team_required
+@creator_required
+def invitations(request):
+    profile = request.user.creator_profile
+    rows = profile.invitations.select_related("campaign")
+    return render(request, "creators/invitations.html", {"invitations": rows})
+
+
+@creator_required
+@require_POST
+def respond_invitation(request, pk):
+    from campaigns.models import Invitation
+    from campaigns.status import OPEN_INVITATIONS, apply_invitation_response
+
+    profile = request.user.creator_profile
+    invitation = get_object_or_404(Invitation, pk=pk, creator=profile)
+    if invitation.status not in OPEN_INVITATIONS:
+        messages.error(request, "This invitation is no longer waiting for a response.")
+        return redirect("creators:invitations")
+    accepted = request.POST.get("decision") == "accept"
+    apply_invitation_response(
+        invitation,
+        accepted=accepted,
+        actor=request.user,
+        note=request.POST.get("note") or "",
+    )
+    messages.success(request, "Accepted." if accepted else "Declined.")
+    return redirect("creators:invitations")
+
+
+@creator_required
+@require_POST
+def respond_offer(request, pk):
+    from campaigns.models import Offer
+    from campaigns.status import OPEN_OFFERS, apply_offer_response
+
+    profile = request.user.creator_profile
+    offer = get_object_or_404(Offer, pk=pk, creator=profile)
+    if offer.state not in OPEN_OFFERS:
+        messages.error(request, "This offer is no longer waiting for a response.")
+        return redirect("creators:my_campaign", pk=offer.campaign_id)
+    accepted = request.POST.get("decision") == "accept"
+    apply_offer_response(
+        offer,
+        accepted=accepted,
+        actor=request.user,
+        note=request.POST.get("note") or "",
+    )
+    messages.success(request, "Offer accepted." if accepted else "Offer declined.")
+    return redirect("creators:my_campaign", pk=offer.campaign_id)
+
+
+@permission_required("creators")
+def creator_directory(request):
+    rows = CreatorProfile.objects.select_related("user")
+    query = (request.GET.get("q") or "").strip()
+    if query:
+        rows = rows.filter(display_name__icontains=query)
+    page = Paginator(rows, 12).get_page(request.GET.get("page"))
+    cards = [{"creator": creator, "metrics": creator_metrics(creator)} for creator in page]
+    return render(request, "creators/directory.html", {"page": page, "cards": cards, "q": query})
+
+
+@permission_required("creators")
 def creator_detail(request, pk):
     creator = get_object_or_404(CreatorProfile.objects.select_related("user"), pk=pk)
     metrics = creator_metrics(creator)
@@ -174,7 +246,7 @@ def creator_detail(request, pk):
     )
 
 
-@team_required
+@permission_required("creators")
 @require_POST
 def classify_now(request, pk):
     creator = get_object_or_404(CreatorProfile, pk=pk)
@@ -186,7 +258,7 @@ def classify_now(request, pk):
     return redirect("creators:detail", pk=pk)
 
 
-@team_required
+@permission_required("creators")
 @require_POST
 def review_classification(request, pk):
     creator = get_object_or_404(CreatorProfile, pk=pk)
@@ -220,7 +292,7 @@ def review_classification(request, pk):
     return redirect("creators:detail", pk=pk)
 
 
-@team_required
+@permission_required("classifications")
 def classification_queue(request):
     rows = Classification.objects.filter(needs_review=True).select_related("creator", "category")
     page = Paginator(rows, 20).get_page(request.GET.get("page"))
@@ -231,7 +303,7 @@ def classification_queue(request):
     )
 
 
-@team_required
+@permission_required("jobs")
 def jobs(request):
     rows = EnrichmentJob.objects.select_related("creator").all()
     status = request.GET.get("status")
@@ -247,7 +319,7 @@ def jobs(request):
     )
 
 
-@team_required
+@permission_required("creators")
 @require_POST
 def request_enrichment(request, pk):
     creator = get_object_or_404(CreatorProfile, pk=pk)
@@ -263,7 +335,7 @@ def request_enrichment(request, pk):
     return redirect("creators:detail", pk=pk)
 
 
-@team_required
+@permission_required("jobs")
 @require_POST
 def retry_enrichment(request, pk):
     job = get_object_or_404(EnrichmentJob, pk=pk)
@@ -272,7 +344,7 @@ def retry_enrichment(request, pk):
     return redirect("creators:jobs")
 
 
-@team_required
+@permission_required("jobs")
 @require_POST
 def run_jobs(request):
     processed = process_pending_jobs()
@@ -285,13 +357,3 @@ def creator_redirect(request):
     if hasattr(request.user, "creator_profile"):
         return redirect("creators:me")
     return redirect("analytics:dashboard")
-
-
-def _unique_username(email):
-    base = email.split("@")[0][:140] or "creator"
-    username = base
-    index = 1
-    while User.objects.filter(username=username).exists():
-        username = f"{base}{index}"
-        index += 1
-    return username

@@ -1,8 +1,8 @@
 {% extends "allauth/layouts/base.html" %}
 {% block head_title %}Sign up · Awisee{% endblock %}
 {% block content %}
-  <h1>Create your studio</h1>
-  <p class="lede">Email signups stay locked until you open the verification link. Google accounts skip that step.</p>
+  <h1>Create a staff account</h1>
+  <p class="lede">Employee signup. An admin can later grant admin access or change module permissions. Email stays locked until you open the verification link. Google accounts skip that step.</p>
   {% include "partials/google_button.html" %}
   <div class="or-line">or email</div>
   <form method="post" action="{% url 'account_signup' %}">
@@ -21,4 +21,5 @@
     <button type="submit">Create account</button>
   </form>
   <p class="mt-3">Already verified? <a href="{% url 'account_login' %}">Log in</a></p>
+  <p class="muted">Creators should <a href="{% url 'creators:join' %}">register here</a>.</p>
 {% endblock %}

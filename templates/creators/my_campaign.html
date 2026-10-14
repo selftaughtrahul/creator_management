@@ -3,17 +3,26 @@
 {% block page_heading %}{{ campaign.name }}{% endblock %}
 {% block content %}
   <p class="muted">{{ campaign.objective }}</p>
-  <p>Your status on this campaign: {{ membership.get_state_display }}</p>
+  <p>Campaign status: {{ campaign.get_status_display }}{% if membership %} · your place: {{ membership.get_state_display }}{% endif %}</p>
   <section class="panel mt-3">
     <h2>Offers</h2>
-    <p class="muted">You can counter. A team member still has to accept commercial terms.</p>
+    <p class="muted">Accept, reject, or counter. Staff are notified of your decision.</p>
     {% for offer in offers %}
       <p><strong>{{ offer.amount }} {{ offer.currency }}</strong> · {{ offer.get_state_display }} · {{ offer.note }}</p>
+      {% if offer.state == "proposed" or offer.state == "countered" %}
+        <form method="post" action="{% url 'creators:respond_offer' offer.pk %}" class="actions">
+          {% csrf_token %}
+          <input type="text" name="note" placeholder="Optional note">
+          <button class="btn-accent" name="decision" value="accept">Accept offer</button>
+          <button class="btn-line" name="decision" value="reject">Reject offer</button>
+        </form>
+      {% endif %}
     {% empty %}
       <p class="muted">No offers yet.</p>
     {% endfor %}
     <form method="post" class="stack-form mt-3">
       {% csrf_token %}
+      <input type="hidden" name="action" value="counter">
       {% include "partials/form_fields.html" %}
       <button class="btn-accent" type="submit">Send counteroffer</button>
     </form>
@@ -22,6 +31,13 @@
     <h2>Invitations</h2>
     {% for invite in invitations %}
       <p>{{ invite.subject }} · {{ invite.get_status_display }} · {{ invite.created_at|date:"d M Y H:i" }}</p>
+      {% if invite.status == "sent" or invite.status == "stored_locally" or invite.status == "confirmed" or invite.status == "draft" or invite.status == "responded" %}
+        <form method="post" action="{% url 'creators:respond_invitation' invite.pk %}" class="actions">
+          {% csrf_token %}
+          <button class="btn-accent" name="decision" value="accept">Accept</button>
+          <button class="btn-line" name="decision" value="reject">Reject</button>
+        </form>
+      {% endif %}
     {% empty %}
       <p class="muted">None yet.</p>
     {% endfor %}

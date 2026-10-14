@@ -4,10 +4,12 @@ from django.db.models import Count, Sum
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
+from accounts.models import StudioProfile
 from campaigns.models import Campaign, CampaignCreator, Invitation, Offer, RecommendationFeedback
 from creators.evaluation import evaluate_labels
 from creators.jobs import backlog_counts
 from creators.models import Classification, CreatorProfile, EnrichmentJob
+from networks.models import SocialAccount
 
 
 def studio_dashboard(request):
@@ -116,6 +118,12 @@ def studio_dashboard(request):
             "acceptance_rate": acceptance,
             "feedback_total": feedback_total,
             "due_followups": due_followups,
+            "admins": StudioProfile.objects.filter(
+                role__in=[StudioProfile.Role.ADMIN, StudioProfile.Role.TEAM]
+            ).count(),
+            "employees": StudioProfile.objects.filter(role=StudioProfile.Role.EMPLOYEE).count(),
+            "creators_total": StudioProfile.objects.filter(role=StudioProfile.Role.CREATOR).count(),
+            "social_accounts": SocialAccount.objects.count(),
         },
         "definitions": {
             "campaigns_total": "Count of Campaign rows in the selected date/campaign filter.",
@@ -126,6 +134,10 @@ def studio_dashboard(request):
             "budget_sum": "Sum of Campaign.budget where budget is set. Campaigns without a budget are omitted.",
             "cost_sum": "Sum of CampaignCreator.recorded_cost. Null costs are unrecorded, not treated as zero.",
             "acceptance_rate": "RecommendationFeedback decision=yes divided by all feedback rows. Hidden when none exist.",
+            "admins": "StudioProfile rows with role admin (legacy team counts as admin).",
+            "employees": "StudioProfile rows with role employee.",
+            "creators_total": "StudioProfile rows with role creator.",
+            "social_accounts": "Connected SocialAccount rows across every user.",
         },
         "status_counts": status_counts,
         "invite_counts": invite_counts,

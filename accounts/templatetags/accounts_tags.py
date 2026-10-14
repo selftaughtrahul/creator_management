@@ -7,6 +7,13 @@ from django.utils import timezone
 register = template.Library()
 
 
+@register.filter(name="has_perm")
+def has_perm_filter(user, code):
+    from accounts.permissions import has_perm
+
+    return has_perm(user, code)
+
+
 @register.simple_tag
 def latest_dev_email():
     if not settings.DEBUG:

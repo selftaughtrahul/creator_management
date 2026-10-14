@@ -1,54 +1,82 @@
-<a class="side-brand" href="{% url 'analytics:dashboard' %}">
+<a class="side-brand" href="{% if is_creator_member %}{% url 'creators:me' %}{% elif can_studio_dashboard %}{% url 'campaigns:dashboard' %}{% else %}{% url 'analytics:dashboard' %}{% endif %}">
   <span class="brand-mark">A</span>
   <span>Awisee</span>
 </a>
 <nav class="side-links">
-  <a class="{% if request.resolver_match.view_name == 'analytics:dashboard' %}is-active{% endif %}" href="{% url 'analytics:dashboard' %}">
-    <i class="bi bi-grid-1x2"></i> Overview
-  </a>
-  {% if is_team_member %}
-    <a class="{% if request.resolver_match.view_name == 'campaigns:dashboard' %}is-active{% endif %}" href="{% url 'campaigns:dashboard' %}">
-      <i class="bi bi-kanban"></i> Studio
-    </a>
-    <a class="{% if 'campaigns:' in request.resolver_match.view_name and request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'discover' and request.resolver_match.url_name != 'feedback' %}is-active{% endif %}" href="{% url 'campaigns:list' %}">
-      <i class="bi bi-flag"></i> Campaigns
-    </a>
-    <a class="{% if request.resolver_match.url_name == 'discover' or request.resolver_match.url_name == 'campaign_discover' %}is-active{% endif %}" href="{% url 'campaigns:discover' %}">
-      <i class="bi bi-search"></i> Discover
-    </a>
-    <a class="{% if request.resolver_match.view_name == 'campaigns:feedback' %}is-active{% endif %}" href="{% url 'campaigns:feedback' %}">
-      <i class="bi bi-hand-thumbs-up"></i> Feedback
-    </a>
-    <a class="{% if request.resolver_match.view_name == 'creators:jobs' %}is-active{% endif %}" href="{% url 'creators:jobs' %}">
-      <i class="bi bi-hourglass-split"></i> Jobs
-    </a>
-    <a class="{% if request.resolver_match.view_name == 'creators:queue' %}is-active{% endif %}" href="{% url 'creators:queue' %}">
-      <i class="bi bi-tags"></i> Classifications
-    </a>
-    <a class="{% if request.resolver_match.view_name == 'campaigns:templates' %}is-active{% endif %}" href="{% url 'campaigns:templates' %}">
-      <i class="bi bi-envelope"></i> Templates
-    </a>
-    <a class="{% if request.resolver_match.view_name == 'campaigns:outreach_history' %}is-active{% endif %}" href="{% url 'campaigns:outreach_history' %}">
-      <i class="bi bi-send"></i> Outreach
-    </a>
-  {% endif %}
   {% if is_creator_member %}
     <a class="{% if request.resolver_match.view_name == 'creators:me' %}is-active{% endif %}" href="{% url 'creators:me' %}">
       <i class="bi bi-person-badge"></i> Creator profile
     </a>
-    <a class="{% if 'creators:my_campaign' in request.resolver_match.view_name %}is-active{% endif %}" href="{% url 'creators:my_campaigns' %}">
+    <a class="{% if request.resolver_match.view_name == 'analytics:dashboard' %}is-active{% endif %}" href="{% url 'analytics:dashboard' %}">
+      <i class="bi bi-graph-up"></i> My analytics
+    </a>
+    <a class="{% if request.resolver_match.view_name == 'creators:my_campaigns' or request.resolver_match.view_name == 'creators:my_campaign' %}is-active{% endif %}" href="{% url 'creators:my_campaigns' %}">
       <i class="bi bi-flag"></i> My campaigns
     </a>
-  {% endif %}
-  <a class="{% if request.resolver_match.view_name == 'networks:connections' %}is-active{% endif %}" href="{% url 'networks:connections' %}">
-    <i class="bi bi-plug"></i> Connections
-  </a>
-  <div class="side-label">Networks</div>
-  {% for key, meta in platform_catalog.items %}
-    <a class="{% if request.resolver_match.kwargs.platform == key %}is-active{% endif %}" href="{% url 'analytics:platform' key %}">
-      <i class="bi {{ meta.icon }}"></i> {{ meta.label }}
+    <a class="{% if request.resolver_match.view_name == 'creators:invitations' %}is-active{% endif %}" href="{% url 'creators:invitations' %}">
+      <i class="bi bi-envelope"></i> Invitations
     </a>
-  {% endfor %}
+    <a class="{% if request.resolver_match.view_name == 'networks:connections' %}is-active{% endif %}" href="{% url 'networks:connections' %}">
+      <i class="bi bi-plug"></i> Connections
+    </a>
+    <div class="side-label">Networks</div>
+    {% for key, meta in platform_catalog.items %}
+      <a class="{% if request.resolver_match.kwargs.platform == key %}is-active{% endif %}" href="{% url 'analytics:platform' key %}">
+        <i class="bi {{ meta.icon }}"></i> {{ meta.label }}
+      </a>
+    {% endfor %}
+  {% else %}
+    {% if can_studio_dashboard %}
+      <a class="{% if request.resolver_match.view_name == 'campaigns:dashboard' %}is-active{% endif %}" href="{% url 'campaigns:dashboard' %}">
+        <i class="bi bi-kanban"></i> Studio
+      </a>
+    {% endif %}
+    {% if can_campaigns %}
+      <a class="{% if 'campaigns:' in request.resolver_match.view_name and request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'discover' and request.resolver_match.url_name != 'feedback' and request.resolver_match.url_name != 'templates' and request.resolver_match.url_name != 'outreach_history' %}is-active{% endif %}" href="{% url 'campaigns:list' %}">
+        <i class="bi bi-flag"></i> Campaigns
+      </a>
+    {% endif %}
+    {% if can_creators %}
+      <a class="{% if request.resolver_match.view_name == 'creators:directory' or request.resolver_match.view_name == 'creators:detail' %}is-active{% endif %}" href="{% url 'creators:directory' %}">
+        <i class="bi bi-people"></i> Creators
+      </a>
+    {% endif %}
+    {% if can_discover %}
+      <a class="{% if request.resolver_match.url_name == 'discover' or request.resolver_match.url_name == 'campaign_discover' %}is-active{% endif %}" href="{% url 'campaigns:discover' %}">
+        <i class="bi bi-search"></i> Discover
+      </a>
+    {% endif %}
+    {% if can_feedback %}
+      <a class="{% if request.resolver_match.view_name == 'campaigns:feedback' %}is-active{% endif %}" href="{% url 'campaigns:feedback' %}">
+        <i class="bi bi-hand-thumbs-up"></i> Feedback
+      </a>
+    {% endif %}
+    {% if can_jobs %}
+      <a class="{% if request.resolver_match.view_name == 'creators:jobs' %}is-active{% endif %}" href="{% url 'creators:jobs' %}">
+        <i class="bi bi-hourglass-split"></i> Jobs
+      </a>
+    {% endif %}
+    {% if can_classifications %}
+      <a class="{% if request.resolver_match.view_name == 'creators:queue' %}is-active{% endif %}" href="{% url 'creators:queue' %}">
+        <i class="bi bi-tags"></i> Classifications
+      </a>
+    {% endif %}
+    {% if can_templates %}
+      <a class="{% if request.resolver_match.view_name == 'campaigns:templates' %}is-active{% endif %}" href="{% url 'campaigns:templates' %}">
+        <i class="bi bi-file-text"></i> Templates
+      </a>
+    {% endif %}
+    {% if can_outreach %}
+      <a class="{% if request.resolver_match.view_name == 'campaigns:outreach_history' %}is-active{% endif %}" href="{% url 'campaigns:outreach_history' %}">
+        <i class="bi bi-send"></i> Outreach
+      </a>
+    {% endif %}
+    {% if can_users %}
+      <a class="{% if request.resolver_match.view_name == 'accounts:people' or request.resolver_match.view_name == 'accounts:person' %}is-active{% endif %}" href="{% url 'accounts:people' %}">
+        <i class="bi bi-person-gear"></i> People
+      </a>
+    {% endif %}
+  {% endif %}
 </nav>
 <div class="side-foot">
   <a class="{% if request.resolver_match.view_name == 'accounts:profile' %}is-active{% endif %}" href="{% url 'accounts:profile' %}">

@@ -31,6 +31,12 @@
     </article>
   </section>
   <section class="stat-grid">
+    <article class="stat"><span class="label">Admins</span><strong>{{ kpis.admins|intcomma }}</strong><em>{{ definitions.admins }}</em></article>
+    <article class="stat"><span class="label">Employees</span><strong>{{ kpis.employees|intcomma }}</strong><em>{{ definitions.employees }}</em></article>
+    <article class="stat"><span class="label">Creator accounts</span><strong>{{ kpis.creators_total|intcomma }}</strong><em>{{ definitions.creators_total }}</em></article>
+    <article class="stat"><span class="label">Connected accounts</span><strong>{{ kpis.social_accounts|intcomma }}</strong><em>{{ definitions.social_accounts }}</em></article>
+  </section>
+  <section class="stat-grid">
     <article class="stat"><span class="label">Feedback yes-rate</span><strong>{% if kpis.acceptance_rate is not None %}{{ kpis.acceptance_rate }}%{% else %}—{% endif %}</strong><em>{{ kpis.feedback_total }} feedback row{{ kpis.feedback_total|pluralize }}</em></article>
     <article class="stat"><span class="label">Classification eval</span><strong>{% if evaluation.ready %}{{ evaluation.f1 }}{% else %}—{% endif %}</strong><em>{{ evaluation.message }}</em></article>
     <article class="stat"><span class="label">Job backlog</span><strong>{{ jobs.open|intcomma }}</strong><em>{{ jobs.pending }} pending · {{ jobs.blocked }} blocked · {{ jobs.failed }} failed</em></article>

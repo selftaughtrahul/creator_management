@@ -275,7 +275,24 @@ button, input, textarea, select { font-family: inherit; }
   z-index: 5;
 }
 .topbar h1 { font-size: 28px; margin: 0; }
-.topbar .who { margin-left: auto; color: var(--muted); }
+.topbar .who { color: var(--muted); }
+.topbar-tools { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.note-bell { position: relative; color: var(--ink); font-size: 20px; text-decoration: none; }
+.note-count {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
 .app-content { padding: 24px 28px 48px; }
 .page-head, .split, .stat-grid, .card-grid, .two-col { display: grid; gap: 16px; }
 .page-head { grid-template-columns: 1fr auto; align-items: end; margin-bottom: 18px; }

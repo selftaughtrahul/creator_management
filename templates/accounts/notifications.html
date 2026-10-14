@@ -1,0 +1,31 @@
+{% extends "app/base.html" %}
+{% block title %}Notifications · Awisee{% endblock %}
+{% block page_heading %}Notifications{% endblock %}
+{% block content %}
+  <div class="page-head">
+    <p>Invitation and offer updates for your role.</p>
+    <form method="post" action="{% url 'accounts:notifications_read_all' %}">
+      {% csrf_token %}
+      <button class="btn-line" type="submit">Mark all read</button>
+    </form>
+  </div>
+  <section class="panel">
+    {% for note in page %}
+      <article class="mb-3">
+        <p>
+          <strong>{{ note.title }}</strong>
+          {% if note.is_unread %}<span class="badge-sample">New</span>{% endif %}
+          <span class="badge-source">{{ note.created_at|date:"d M Y H:i" }}</span>
+        </p>
+        <p class="muted">{{ note.body }}</p>
+        <form method="post" action="{% url 'accounts:notification_read' note.pk %}">
+          {% csrf_token %}
+          <button class="btn-line" type="submit">{% if note.url %}Open{% else %}Mark read{% endif %}</button>
+        </form>
+      </article>
+    {% empty %}
+      <p class="muted">No notifications.</p>
+    {% endfor %}
+    {% include "partials/pager.html" %}
+  </section>
+{% endblock %}

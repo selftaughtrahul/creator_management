@@ -3,7 +3,8 @@ from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from accounts.permissions import team_required
+from accounts.notify import notify_creator_offer
+from accounts.permissions import permission_required
 from campaigns.dashboard import studio_dashboard
 from campaigns.export import shortlist_csv
 from campaigns.forms import (
@@ -34,12 +35,12 @@ from creators.parser import criteria_from_campaign
 from networks.models import SocialAccount
 
 
-@team_required
+@permission_required("studio_dashboard")
 def dashboard(request):
     return render(request, "campaigns/dashboard.html", studio_dashboard(request))
 
 
-@team_required
+@permission_required("campaigns")
 def campaign_list(request):
     rows = Campaign.objects.select_related("owner", "niche")
     status = request.GET.get("status")
@@ -49,7 +50,7 @@ def campaign_list(request):
     return render(request, "campaigns/list.html", {"page": page, "status": status})
 
 
-@team_required
+@permission_required("campaigns")
 def campaign_create(request):
     form = CampaignForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -61,7 +62,7 @@ def campaign_create(request):
     return render(request, "campaigns/form.html", {"form": form, "title": "New campaign"})
 
 
-@team_required
+@permission_required("campaigns")
 def campaign_edit(request, pk):
     campaign = get_object_or_404(Campaign, pk=pk)
     form = CampaignForm(request.POST or None, instance=campaign)
@@ -72,7 +73,7 @@ def campaign_edit(request, pk):
     return render(request, "campaigns/form.html", {"form": form, "title": "Edit campaign", "campaign": campaign})
 
 
-@team_required
+@permission_required("campaigns")
 def campaign_detail(request, pk):
     campaign = get_object_or_404(Campaign.objects.select_related("niche", "subcategory", "owner"), pk=pk)
     memberships = campaign.memberships.select_related("creator")
@@ -105,7 +106,7 @@ def campaign_detail(request, pk):
     )
 
 
-@team_required
+@permission_required("campaigns")
 @require_POST
 def shortlist_creator(request, pk, creator_id):
     campaign = get_object_or_404(Campaign, pk=pk)
@@ -126,7 +127,7 @@ def shortlist_creator(request, pk, creator_id):
     return redirect("campaigns:detail", pk=campaign.pk)
 
 
-@team_required
+@permission_required("campaigns")
 @require_POST
 def assign_creator(request, pk, creator_id):
     campaign = get_object_or_404(Campaign, pk=pk)
@@ -143,7 +144,7 @@ def assign_creator(request, pk, creator_id):
     return redirect("campaigns:detail", pk=pk)
 
 
-@team_required
+@permission_required("campaigns")
 @require_POST
 def update_cost(request, pk, creator_id):
     campaign = get_object_or_404(Campaign, pk=pk)
@@ -156,7 +157,7 @@ def update_cost(request, pk, creator_id):
     return redirect("campaigns:detail", pk=pk)
 
 
-@team_required
+@permission_required("discover")
 def discover(request, pk=None):
     campaign = get_object_or_404(Campaign, pk=pk) if pk else None
     form = DiscoverForm(request.GET or None)
@@ -192,7 +193,7 @@ def discover(request, pk=None):
     )
 
 
-@team_required
+@permission_required("discover")
 @require_POST
 def request_search_enrichment(request):
     creator_ids = [int(part) for part in request.POST.getlist("creator_id") if part.isdigit()]
@@ -209,7 +210,7 @@ def request_search_enrichment(request):
     return redirect(request.POST.get("next") or "campaigns:discover")
 
 
-@team_required
+@permission_required("feedback")
 @require_POST
 def submit_feedback(request, pk, creator_id):
     campaign = get_object_or_404(Campaign, pk=pk)
@@ -249,7 +250,7 @@ def submit_feedback(request, pk, creator_id):
     return redirect(request.POST.get("next") or "campaigns:feedback")
 
 
-@team_required
+@permission_required("feedback")
 def feedback_list(request):
     rows = RecommendationFeedback.objects.select_related("campaign", "creator", "user")
     campaign_id = request.GET.get("campaign")
@@ -263,7 +264,7 @@ def feedback_list(request):
     )
 
 
-@team_required
+@permission_required("templates")
 def template_list(request):
     form = TemplateForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -279,7 +280,7 @@ def template_list(request):
     )
 
 
-@team_required
+@permission_required("outreach")
 @require_POST
 def prepare_outreach(request, pk):
     campaign = get_object_or_404(Campaign, pk=pk)
@@ -308,7 +309,7 @@ def prepare_outreach(request, pk):
     return redirect("campaigns:confirm_outreach", pk=pk)
 
 
-@team_required
+@permission_required("outreach")
 def confirm_outreach(request, pk):
     campaign = get_object_or_404(Campaign, pk=pk)
     ids = request.session.get("pending_invitations") or []
@@ -329,7 +330,7 @@ def confirm_outreach(request, pk):
     )
 
 
-@team_required
+@permission_required("outreach")
 @require_POST
 def invitation_outcome(request, pk):
     invitation = get_object_or_404(Invitation, pk=pk)
@@ -340,7 +341,7 @@ def invitation_outcome(request, pk):
     return redirect("campaigns:detail", pk=invitation.campaign_id)
 
 
-@team_required
+@permission_required("campaigns")
 @require_POST
 def create_offer(request, pk, creator_id):
     campaign = get_object_or_404(Campaign, pk=pk)
@@ -353,11 +354,12 @@ def create_offer(request, pk, creator_id):
         offer.created_by = request.user
         offer.state = Offer.State.PROPOSED
         offer.save()
-        messages.success(request, "Offer proposed. Acceptance still needs a team decision.")
+        notify_creator_offer(offer)
+        messages.success(request, "Offer proposed. The creator can accept, reject, or counter.")
     return redirect("campaigns:detail", pk=pk)
 
 
-@team_required
+@permission_required("campaigns")
 @require_POST
 def decide_offer(request, pk):
     offer = get_object_or_404(Offer, pk=pk)
@@ -385,13 +387,13 @@ def decide_offer(request, pk):
     return redirect("campaigns:detail", pk=offer.campaign_id)
 
 
-@team_required
+@permission_required("campaigns")
 def export_shortlist(request, pk):
     campaign = get_object_or_404(Campaign, pk=pk)
     return shortlist_csv(campaign)
 
 
-@team_required
+@permission_required("outreach")
 def outreach_history(request):
     rows = Invitation.objects.select_related("campaign", "creator")
     page = Paginator(rows, 20).get_page(request.GET.get("page"))

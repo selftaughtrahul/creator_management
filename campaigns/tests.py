@@ -131,6 +131,11 @@ class CampaignAndSearchTests(TestCase):
         self.assertEqual(invite.status, Invitation.Status.STORED_LOCALLY)
         self.assertEqual(len(mail.outbox), 1)
         self.assertNotEqual(invite.status, Invitation.Status.ACCEPTED)
+        from accounts.models import Notification
+
+        self.assertTrue(
+            Notification.objects.filter(user=self.creator.user, kind=Notification.Kind.INVITATION).exists()
+        )
 
     def test_creator_cannot_see_another_creators_campaign(self):
         campaign = Campaign.objects.create(owner=self.team, name="Private")

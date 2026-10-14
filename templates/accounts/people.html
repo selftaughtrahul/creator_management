@@ -1,0 +1,30 @@
+{% extends "app/base.html" %}
+{% block title %}People · Awisee{% endblock %}
+{% block page_heading %}People{% endblock %}
+{% block content %}
+  <p class="muted">Admins manage employees, creators, and account access. Employees only see modules they are assigned.</p>
+  <div class="filter-bar">
+    <a class="btn-line" href="{% url 'accounts:people' %}">All</a>
+    <a class="btn-line" href="?role=admin">Admins</a>
+    <a class="btn-line" href="?role=employee">Employees</a>
+    <a class="btn-line" href="?role=creator">Creators</a>
+  </div>
+  <section class="panel">
+    <table class="data">
+      <thead><tr><th>Person</th><th>Role</th><th>Active</th><th></th></tr></thead>
+      <tbody>
+        {% for row in page %}
+          <tr>
+            <td>{{ row.user.get_full_name|default:row.user.email }}<div class="badge-source">{{ row.user.email }}</div></td>
+            <td>{{ row.get_role_display }}</td>
+            <td>{% if row.user.is_active %}Yes{% else %}No{% endif %}</td>
+            <td><a class="btn-line" href="{% url 'accounts:person' row.pk %}">Manage</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">No people yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% include "partials/pager.html" %}
+  </section>
+{% endblock %}

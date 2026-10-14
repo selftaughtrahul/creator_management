@@ -16,7 +16,7 @@
     <a class="brand-lockup" href="{% url 'accounts:home' %}"><span class="brand-mark">A</span> Awisee</a>
     <nav>
       <a href="{% url 'account_login' %}">Log in</a>
-      <a class="btn-accent" href="{% url 'account_signup' %}">Sign up</a>
+      <a class="btn-accent" href="{% url 'accounts:employee_join' %}">Staff signup</a>
     </nav>
   </header>
   <section class="hero">
@@ -25,9 +25,9 @@
       <h1>See the work across every network.</h1>
       <p class="lede">Create an account with email verification or Google. Connect Instagram, Facebook, YouTube, and X, then keep the numbers in your own database.</p>
       <div class="hero-actions">
-        <a class="btn-accent" href="{% url 'account_signup' %}">Create an account</a>
-        <a class="btn-line" href="{% url 'account_login' %}">I already have one</a>
+        <a class="btn-accent" href="{% url 'accounts:employee_join' %}">Join as an employee</a>
         <a class="btn-line" href="{% url 'creators:join' %}">Register as a creator</a>
+        <a class="btn-line" href="{% url 'account_login' %}">Log in</a>
       </div>
     </div>
     <div class="steps">

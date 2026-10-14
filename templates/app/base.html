@@ -21,7 +21,13 @@
           Menu
         </button>
         <h1>{% block page_heading %}Studio{% endblock %}</h1>
-        <div class="who">{{ user.get_full_name|default:user.email }}</div>
+        <div class="topbar-tools">
+          <a class="note-bell" href="{% url 'accounts:notifications' %}" aria-label="Notifications">
+            <i class="bi bi-bell"></i>
+            {% if unread_notifications %}<span class="note-count">{{ unread_notifications }}</span>{% endif %}
+          </a>
+          <div class="who">{{ user.get_full_name|default:user.email }}</div>
+        </div>
       </header>
       <div class="app-content">
         {% include "partials/messages.html" %}

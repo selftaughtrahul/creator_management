@@ -1,0 +1,13 @@
+{% extends "app/base.html" %}
+{% block title %}{{ profile.user.email }} · Awisee{% endblock %}
+{% block page_heading %}{{ profile.user.get_full_name|default:profile.user.email }}{% endblock %}
+{% block content %}
+  <p class="muted">{{ profile.user.email }} · current role {{ profile.get_role_display }}</p>
+  <section class="panel stack-form">
+    <form method="post">
+      {% csrf_token %}
+      {% include "partials/form_fields.html" %}
+      <button class="btn-accent" type="submit">Save</button>
+    </form>
+  </section>
+{% endblock %}

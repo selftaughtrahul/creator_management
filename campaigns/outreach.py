@@ -53,6 +53,10 @@ def send_invitation(invitation):
             invitation.last_error = f"Unknown email backend {backend}; marked sent only because send_mail returned a count."
     invitation.save(update_fields=["status", "sent_at", "last_error"])
     logger.info("invitation_result id=%s status=%s", invitation.pk, invitation.status)
+    if invitation.status in {Invitation.Status.SENT, Invitation.Status.STORED_LOCALLY}:
+        from accounts.notify import notify_creator_invitation
+
+        notify_creator_invitation(invitation)
     return invitation
 
 

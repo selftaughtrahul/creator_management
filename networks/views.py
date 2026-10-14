@@ -4,12 +4,14 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from accounts.permissions import creator_required, is_creator
 from networks.demo import connect_sample
 from networks.http import ProviderError
 from networks.models import SocialAccount
@@ -44,7 +46,7 @@ def _resume_user(request, user_id):
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
 
 
-@login_required
+@creator_required
 def connections(request):
     accounts = {account.platform: account for account in request.user.social_accounts.all()}
     cards = []
@@ -60,7 +62,7 @@ def connections(request):
     return render(request, "app/connections.html", {"cards": cards})
 
 
-@login_required
+@creator_required
 def start_oauth(request, platform):
     platform = _platform(platform)
     if not oauth_ready(platform):
@@ -94,6 +96,8 @@ def oauth_callback(request, platform):
     try:
         saved = pop_state(request, platform, request.GET.get("state", ""))
         _resume_user(request, saved.get("user_id"))
+        if not is_creator(request.user):
+            raise PermissionDenied
         code = request.GET.get("code")
         if not code:
             raise ProviderError(f"{label} did not return an authorization code.")
@@ -136,7 +140,7 @@ def oauth_callback(request, platform):
     return redirect("analytics:platform", platform=platform)
 
 
-@login_required
+@creator_required
 @require_POST
 def load_sample(request, platform):
     platform = _platform(platform)
@@ -152,7 +156,7 @@ def load_sample(request, platform):
     return redirect("analytics:platform", platform=platform)
 
 
-@login_required
+@creator_required
 @require_POST
 def sync(request, platform):
     platform = _platform(platform)
@@ -168,7 +172,7 @@ def sync(request, platform):
     return redirect("networks:connections")
 
 
-@login_required
+@creator_required
 @require_POST
 def sync_all(request):
     failures = []

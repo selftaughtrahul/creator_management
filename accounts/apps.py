@@ -18,25 +18,34 @@ def ensure_site(sender, **kwargs):
 def ensure_studio_profile(sender, instance, created, **kwargs):
     if not created:
         return
-    from accounts.models import StudioProfile
+    from accounts.models import DEFAULT_EMPLOYEE_PERMISSIONS, StudioProfile
 
-    StudioProfile.objects.get_or_create(
-        user=instance,
-        defaults={"role": StudioProfile.Role.TEAM},
-    )
+    role = StudioProfile.Role.ADMIN if instance.is_superuser else StudioProfile.Role.EMPLOYEE
+    defaults = {"role": role}
+    if role == StudioProfile.Role.EMPLOYEE:
+        defaults["permissions"] = list(DEFAULT_EMPLOYEE_PERMISSIONS)
+    StudioProfile.objects.get_or_create(user=instance, defaults=defaults)
 
 
 def backfill_studio_profiles(sender, **kwargs):
     from django.contrib.auth import get_user_model
     from django.db.utils import OperationalError, ProgrammingError
 
-    from accounts.models import StudioProfile
+    from accounts.models import DEFAULT_EMPLOYEE_PERMISSIONS, StudioProfile
 
     User = get_user_model()
     try:
+        StudioProfile.objects.filter(role=StudioProfile.Role.TEAM).update(role=StudioProfile.Role.ADMIN)
         missing = User.objects.filter(studio__isnull=True)
         StudioProfile.objects.bulk_create(
-            [StudioProfile(user=user, role=StudioProfile.Role.TEAM) for user in missing],
+            [
+                StudioProfile(
+                    user=user,
+                    role=StudioProfile.Role.ADMIN if user.is_superuser else StudioProfile.Role.EMPLOYEE,
+                    permissions=[] if user.is_superuser else list(DEFAULT_EMPLOYEE_PERMISSIONS),
+                )
+                for user in missing
+            ],
             ignore_conflicts=True,
         )
     except (OperationalError, ProgrammingError):
