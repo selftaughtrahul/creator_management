@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
@@ -21,6 +22,15 @@ def _platform(key):
     if key not in PLATFORMS:
         raise Http404
     return key
+
+
+def _redirect_uri(request, platform):
+    redirect_uri = request.build_absolute_uri(reverse("networks:oauth_callback", args=[platform]))
+    if platform == "instagram" and settings.INSTAGRAM_REDIRECT_URI:
+        return settings.INSTAGRAM_REDIRECT_URI
+    if settings.DEBUG and platform == "facebook" and "://127.0.0.1" in redirect_uri:
+        redirect_uri = redirect_uri.replace("://127.0.0.1", "://localhost", 1)
+    return redirect_uri
 
 
 def _resume_user(request, user_id):
@@ -59,7 +69,7 @@ def start_oauth(request, platform):
             f"Add the {PLATFORMS[platform]['label']} API keys in .env before connecting a live account.",
         )
         return redirect("networks:connections")
-    redirect_uri = request.build_absolute_uri(reverse("networks:oauth_callback", args=[platform]))
+    redirect_uri = _redirect_uri(request, platform)
     return redirect(begin_authorize(request, platform, redirect_uri))
 
 
@@ -68,10 +78,15 @@ def oauth_callback(request, platform):
     label = PLATFORMS[platform]["label"]
     if request.GET.get("error"):
         description = request.GET.get("error_description") or ""
-        if platform in {"facebook", "instagram"} and "permission" in description.lower():
+        if platform == "instagram" and "permission" in description.lower():
             messages.error(
                 request,
-                f"{label} refused the permissions. Add a Facebook Login for Business configuration that includes the Page and Instagram permissions, then set META_LOGIN_CONFIG_ID in .env.",
+                "Instagram refused the permissions. Authorize with the Instagram account, then connect again.",
+            )
+        elif platform == "facebook" and "permission" in description.lower():
+            messages.error(
+                request,
+                "Facebook refused the permissions. Add a Facebook Login for Business configuration that includes the Page permissions, then set META_LOGIN_CONFIG_ID in .env.",
             )
         else:
             messages.error(request, description or f"{label} did not finish connecting.")

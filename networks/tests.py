@@ -2,7 +2,7 @@ from datetime import datetime, timezone as dt_timezone
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from allauth.account.models import EmailAddress
@@ -71,9 +71,29 @@ class SampleConnectionTests(TestCase):
         self.client.post(reverse("networks:disconnect", args=["twitter"]))
         self.assertFalse(SocialAccount.objects.filter(user=self.user, platform="twitter").exists())
 
+    @override_settings(META_APP_ID="", META_APP_SECRET="")
     def test_live_oauth_without_keys_stays_on_connections(self):
         response = self.client.get(reverse("networks:start", args=["facebook"]))
         self.assertRedirects(response, reverse("networks:connections"))
+
+    @override_settings(
+        INSTAGRAM_APP_ID="2133499753913865",
+        INSTAGRAM_REDIRECT_URI="https://localhost:8000/connections/instagram/callback/",
+        DEBUG=True,
+    )
+    def test_instagram_authorize_opens_instagram(self):
+        response = self.client.get(reverse("networks:start", args=["instagram"]))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith("https://www.instagram.com/oauth/authorize?"))
+        self.assertIn("client_id=2133499753913865", response.url)
+        self.assertIn("enable_fb_login=0", response.url)
+        self.assertIn("scope=instagram_business_basic", response.url)
+        self.assertIn(
+            "redirect_uri=https%3A%2F%2Flocalhost%3A8000%2Fconnections%2Finstagram%2Fcallback%2F",
+            response.url,
+        )
+        self.assertNotIn("facebook.com", response.url)
+        self.assertNotIn("config_id", response.url)
 
     def test_insight_history_rebuilds_daily_gains_into_totals(self):
         payload = {

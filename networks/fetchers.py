@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone as dt_timezone
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from networks.http import ProviderError, api_get, as_int, graph
+from networks.http import ProviderError, api_get, as_int, graph, ig_graph
 from networks.oauth import ensure_access_token
 
 
@@ -141,14 +141,22 @@ def fetch_facebook(account):
         )
     page = max(rows, key=lambda row: as_int(row.get("followers_count") or row.get("fan_count")))
     page_token = page.get("access_token") or token
-    posts = api_get(
-        graph(f"{page['id']}/posts"),
-        params={
-            "fields": "id,message,created_time,permalink_url,full_picture,shares,likes.summary(true),comments.summary(true)",
-            "limit": 15,
-            "access_token": page_token,
-        },
-    )
+    note = ""
+    try:
+        posts = api_get(
+            graph(f"{page['id']}/posts"),
+            params={
+                "fields": "id,message,created_time,permalink_url,full_picture,shares,likes.summary(true),comments.summary(true)",
+                "limit": 15,
+                "access_token": page_token,
+            },
+        )
+    except ProviderError:
+        posts = {}
+        note = (
+            "Page saved. Recent posts need the pages_read_engagement permission. "
+            "Add it to the Awisee login configuration, then connect Facebook again."
+        )
     contents = []
     for post in posts.get("data") or []:
         message = (post.get("message") or "Facebook post").strip()
@@ -200,40 +208,37 @@ def fetch_facebook(account):
         snapshots=snapshots,
         contents=contents,
         resource_token=page_token,
+        note=note,
     )
 
 
 def fetch_instagram(account):
     token = ensure_access_token(account)
-    pages = api_get(
-        graph("me/accounts"),
+    profile = api_get(
+        ig_graph("me"),
         params={
-            "fields": "id,name,access_token,instagram_business_account",
+            "fields": "user_id,username,name,account_type,profile_picture_url,followers_count,follows_count,media_count",
             "access_token": token,
         },
     )
-    page = next((row for row in pages.get("data") or [] if row.get("instagram_business_account")), None)
-    if page is None:
+    ig_id = str(profile.get("user_id") or profile.get("id") or "")
+    if not ig_id:
+        raise ProviderError("Instagram did not return this account.")
+    if (profile.get("account_type") or "").upper() == "PERSONAL":
         raise ProviderError(
-            "No professional Instagram account is linked to a Facebook Page you manage."
+            "This Instagram account is personal. Switch it to a professional account in the Instagram app, then connect again."
         )
-    ig_id = page["instagram_business_account"]["id"]
-    page_token = page.get("access_token") or token
-    profile = api_get(
-        graph(ig_id),
-        params={
-            "fields": "id,username,name,profile_picture_url,followers_count,follows_count,media_count",
-            "access_token": page_token,
-        },
-    )
-    media = api_get(
-        graph(f"{ig_id}/media"),
-        params={
-            "fields": "id,caption,media_type,permalink,thumbnail_url,media_url,timestamp,like_count,comments_count",
-            "limit": 15,
-            "access_token": page_token,
-        },
-    )
+    try:
+        media = api_get(
+            ig_graph(f"{ig_id}/media"),
+            params={
+                "fields": "id,caption,media_type,permalink,thumbnail_url,media_url,timestamp,like_count,comments_count",
+                "limit": 15,
+                "access_token": token,
+            },
+        )
+    except ProviderError:
+        media = {}
     kind_map = {"IMAGE": "image", "VIDEO": "reel", "CAROUSEL_ALBUM": "carousel"}
     contents = []
     for item in media.get("data") or []:
@@ -257,13 +262,14 @@ def fetch_instagram(account):
     content_count = as_int(profile.get("media_count")) or len(contents)
     snapshots = _meta_audience_history(
         str(ig_id),
-        page_token,
+        token,
         metrics=("follower_count", "reach"),
         followers_key="follower_count",
         reach_key="reach",
         current_followers=followers,
         following=following,
         content_count=content_count,
+        endpoint=ig_graph,
     )
     snapshots.append(
         FetchedSnapshot(
@@ -273,12 +279,12 @@ def fetch_instagram(account):
             content_count=content_count,
             likes=sum(item.likes for item in contents),
             comments=sum(item.comments for item in contents),
-            breakdowns=_instagram_demographics(str(ig_id), page_token),
+            breakdowns=_instagram_demographics(str(ig_id), token),
         )
     )
     return FetchResult(
         profile=FetchedProfile(
-            external_id=str(profile.get("id") or ig_id),
+            external_id=str(profile.get("user_id") or profile.get("id") or ig_id),
             display_name=profile.get("name") or username or "Instagram",
             username=username,
             profile_url=f"https://www.instagram.com/{username}/" if username else "",
@@ -287,7 +293,6 @@ def fetch_instagram(account):
         ),
         snapshots=snapshots,
         contents=contents,
-        resource_token=page_token,
     )
 
 
@@ -482,10 +487,11 @@ def _meta_audience_history(
     reach_key="",
     following=0,
     content_count=0,
+    endpoint=graph,
 ):
-    days = _insight_days(path, token, metrics)
+    days = _insight_days(path, token, metrics, endpoint=endpoint)
     if not days and len(metrics) > 1:
-        days = _insight_days(path, token, metrics[:1])
+        days = _insight_days(path, token, metrics[:1], endpoint=endpoint)
     ordered = sorted(days.items())
     rows = []
     for _day, values in ordered:
@@ -516,12 +522,12 @@ def _meta_audience_history(
     ]
 
 
-def _insight_days(path, token, metrics):
+def _insight_days(path, token, metrics, endpoint=graph):
     end = timezone.now()
     start = end - timedelta(days=28)
     try:
         report = api_get(
-            graph(f"{path}/insights"),
+            endpoint(f"{path}/insights"),
             params={
                 "metric": ",".join(metrics),
                 "period": "day",
@@ -556,8 +562,8 @@ def _series_is_daily_gain(rows, current_followers):
 
 
 def _instagram_demographics(ig_id, token):
-    countries = _demographic_breakdown(ig_id, token, "country")
-    genders = _demographic_breakdown(ig_id, token, "gender")
+    countries = _demographic_breakdown(ig_id, token, "country", endpoint=ig_graph)
+    genders = _demographic_breakdown(ig_id, token, "gender", endpoint=ig_graph)
     return country_slices(countries) + gender_slices(genders)
 
 
@@ -579,10 +585,10 @@ def _youtube_demographics(headers, followers):
     return country_slices(countries, basis="estimated") + gender_slices(genders, basis="estimated")
 
 
-def _demographic_breakdown(path, token, breakdown):
+def _demographic_breakdown(path, token, breakdown, endpoint=graph):
     try:
         report = api_get(
-            graph(f"{path}/insights"),
+            endpoint(f"{path}/insights"),
             params={
                 "metric": "follower_demographics",
                 "period": "lifetime",

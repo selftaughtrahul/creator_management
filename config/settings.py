@@ -125,6 +125,12 @@ META_APP_ID = os.environ.get("META_APP_ID", "")
 META_APP_SECRET = os.environ.get("META_APP_SECRET", "")
 META_GRAPH_VERSION = os.environ.get("META_GRAPH_VERSION", "v23.0")
 META_LOGIN_CONFIG_ID = os.environ.get("META_LOGIN_CONFIG_ID", "")
+INSTAGRAM_APP_ID = os.environ.get("INSTAGRAM_APP_ID", "")
+INSTAGRAM_APP_SECRET = os.environ.get("INSTAGRAM_APP_SECRET", "")
+INSTAGRAM_REDIRECT_URI = os.environ.get(
+    "INSTAGRAM_REDIRECT_URI",
+    "https://localhost:8000/connections/instagram/callback/",
+)
 TWITTER_CLIENT_ID = os.environ.get("TWITTER_CLIENT_ID", "")
 TWITTER_CLIENT_SECRET = os.environ.get("TWITTER_CLIENT_SECRET", "")
 

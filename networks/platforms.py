@@ -6,7 +6,7 @@ PLATFORMS = {
         "icon": "bi-instagram",
         "color": "#c13584",
         "audience_label": "Followers",
-        "blurb": "Followers and recent posts from a professional account linked to a Facebook Page.",
+        "blurb": "Followers and recent posts from the Instagram account you authorize.",
     },
     "facebook": {
         "label": "Facebook",
@@ -61,18 +61,12 @@ OAUTH = {
         "client_secret": lambda: settings.META_APP_SECRET,
     },
     "instagram": {
-        "auth_url": "https://www.facebook.com/{version}/dialog/oauth",
-        "token_url": "https://graph.facebook.com/{version}/oauth/access_token",
-        "scopes": (
-            "instagram_basic",
-            "instagram_manage_insights",
-            "pages_show_list",
-            "pages_read_engagement",
-            "business_management",
-        ),
-        "extra": {},
-        "client_id": lambda: settings.META_APP_ID,
-        "client_secret": lambda: settings.META_APP_SECRET,
+        "auth_url": "https://www.instagram.com/oauth/authorize",
+        "token_url": "https://api.instagram.com/oauth/access_token",
+        "scopes": ("instagram_business_basic",),
+        "extra": {"enable_fb_login": "0"},
+        "client_id": lambda: settings.INSTAGRAM_APP_ID,
+        "client_secret": lambda: settings.INSTAGRAM_APP_SECRET,
     },
     "twitter": {
         "auth_url": "https://twitter.com/i/oauth2/authorize",
@@ -87,6 +81,8 @@ OAUTH = {
 
 def oauth_ready(platform):
     spec = OAUTH[platform]
+    if platform == "instagram":
+        return bool(spec["client_id"]())
     return bool(spec["client_id"]() and spec["client_secret"]())
 
 

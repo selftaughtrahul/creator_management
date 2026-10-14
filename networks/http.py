@@ -63,8 +63,16 @@ def as_int(value):
         return 0
 
 
-def graph(path):
+def _graph_version():
     version = settings.META_GRAPH_VERSION or "v23.0"
     if not version.startswith("v"):
         version = f"v{version}"
-    return f"https://graph.facebook.com/{version}/{path.lstrip('/')}"
+    return version
+
+
+def graph(path):
+    return f"https://graph.facebook.com/{_graph_version()}/{path.lstrip('/')}"
+
+
+def ig_graph(path):
+    return f"https://graph.instagram.com/{_graph_version()}/{path.lstrip('/')}"

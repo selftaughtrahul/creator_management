@@ -24,7 +24,9 @@ def begin_authorize(request, platform, redirect_uri):
         "state": state,
         **spec["extra"],
     }
-    if platform in {"facebook", "instagram"} and settings.META_LOGIN_CONFIG_ID:
+    if platform == "instagram":
+        params["scope"] = ",".join(spec["scopes"])
+    if platform == "facebook" and settings.META_LOGIN_CONFIG_ID:
         params.pop("scope", None)
         params["config_id"] = settings.META_LOGIN_CONFIG_ID
         params["override_default_response_type"] = "true"
@@ -70,7 +72,13 @@ def exchange_code(platform, code, redirect_uri, code_verifier=""):
         "grant_type": "authorization_code",
     }
     headers = {"Accept": "application/json"}
-    if platform in {"facebook", "instagram"}:
+    if platform == "instagram":
+        if not spec["client_secret"]():
+            raise ProviderError(
+                "Add INSTAGRAM_APP_SECRET from Instagram business login settings in the Meta app, then connect again."
+            )
+        payload = _instagram_token(api_post(token_url, data=params))
+    elif platform == "facebook":
         payload = api_get(token_url, params=params)
     else:
         if platform == "twitter":
@@ -81,7 +89,7 @@ def exchange_code(platform, code, redirect_uri, code_verifier=""):
         payload = api_post(token_url, data=params, headers=headers)
     if "access_token" not in payload:
         raise ProviderError("The network did not return an access token.")
-    if platform in {"facebook", "instagram"}:
+    if platform == "facebook":
         payload = _extend_meta_token(payload)
     return payload
 
@@ -113,8 +121,35 @@ def _extend_meta_token(payload):
     return payload
 
 
+def _instagram_token(payload):
+    rows = payload.get("data") if isinstance(payload, dict) else None
+    if isinstance(rows, list) and rows:
+        payload = rows[0]
+    if not isinstance(payload, dict) or "access_token" not in payload:
+        raise ProviderError("The network did not return an access token.")
+    try:
+        extended = api_get(
+            "https://graph.instagram.com/access_token",
+            params={
+                "grant_type": "ig_exchange_token",
+                "client_secret": settings.INSTAGRAM_APP_SECRET,
+                "access_token": payload["access_token"],
+            },
+        )
+    except ProviderError:
+        return payload
+    if extended.get("access_token"):
+        return extended
+    return payload
+
+
 def _refresh(account):
-    if account.platform == "youtube":
+    if account.platform == "instagram":
+        payload = api_get(
+            "https://graph.instagram.com/refresh_access_token",
+            params={"grant_type": "ig_refresh_token", "access_token": account.access_token},
+        )
+    elif account.platform == "youtube":
         if not account.refresh_token:
             raise ProviderError("The YouTube permission expired. Connect YouTube again.")
         payload = api_post(

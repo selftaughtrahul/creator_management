@@ -24,10 +24,10 @@ Copy `.env.example` to `.env` and add the keys you have. Register these redirect
 | Google login | `http://127.0.0.1:8000/accounts/google/login/callback/` |
 | YouTube | `http://127.0.0.1:8000/connections/youtube/callback/` |
 | Facebook | `http://127.0.0.1:8000/connections/facebook/callback/` |
-| Instagram | `http://127.0.0.1:8000/connections/instagram/callback/` |
+| Instagram | `https://localhost:8000/connections/instagram/callback/` |
 | X | `http://127.0.0.1:8000/connections/twitter/callback/` |
 
-Instagram uses the official Graph API, so the account needs to be a professional account linked to a Facebook Page you manage. A Meta app that uses Facebook Login for Business also needs `META_LOGIN_CONFIG_ID` from that app's login configuration. YouTube needs the Data API and Analytics API enabled. X uses OAuth 2.0 with Read access so the app can store followers and recent posts.
+Instagram uses [Instagram API with Instagram Login](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login): `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, scope `instagram_business_basic`, and `INSTAGRAM_REDIRECT_URI` (`https://localhost:8000/connections/instagram/callback/`). Facebook stays on [Facebook Login](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login) for a Page. Connect a professional Instagram account. Facebook uses a Facebook Login for Business configuration in `META_LOGIN_CONFIG_ID`. YouTube needs the Data API and Analytics API enabled. X uses OAuth 2.0 with Read access so the app can store followers and recent posts.
 
 Refresh everything from the command line with:
 

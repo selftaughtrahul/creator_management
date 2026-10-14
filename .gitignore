@@ -3,5 +3,6 @@ __pycache__/
 *.py[cod]
 db.sqlite3
 .env
+devcerts/
 staticfiles/
 .pytest_cache/
