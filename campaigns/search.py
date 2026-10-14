@@ -21,18 +21,17 @@ def search_creators(query_text=None, criteria=None, *, page=1, per_page=10, sort
     if filters.get("platform"):
         merged["platforms"] = [filters["platform"]]
 
-    queryset = (
-        CreatorProfile.objects.filter(discoverable=True, share_metrics=True)
-        .select_related("user")
-        .prefetch_related(
-            "niches",
-            "user__social_accounts__snapshots",
-            "user__social_accounts__contents",
-            Prefetch(
-                "classifications",
-                queryset=Classification.objects.select_related("category", "subcategory").order_by("-created_at"),
-            ),
-        )
+    queryset = CreatorProfile.objects.filter(discoverable=True, share_metrics=True)
+    if filters.get("name"):
+        queryset = queryset.filter(display_name__icontains=filters["name"])
+    queryset = queryset.select_related("user").prefetch_related(
+        "niches",
+        "user__social_accounts__snapshots",
+        "user__social_accounts__contents",
+        Prefetch(
+            "classifications",
+            queryset=Classification.objects.select_related("category", "subcategory").order_by("-created_at"),
+        ),
     )
     rows = []
     for creator in queryset:

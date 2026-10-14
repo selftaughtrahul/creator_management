@@ -18,7 +18,7 @@ def anthropic_configured():
     return bool(getattr(settings, "ANTHROPIC_API_KEY", ""))
 
 
-def complete_json(prompt, *, max_tokens=1024):
+def complete_json(prompt, *, max_tokens=1024, system=None, messages=None):
     """Ask Claude for a JSON object. Never logs the API key."""
     key = getattr(settings, "ANTHROPIC_API_KEY", "")
     if not key:
@@ -32,8 +32,10 @@ def complete_json(prompt, *, max_tokens=1024):
     payload = {
         "model": model,
         "max_tokens": max_tokens,
-        "messages": [{"role": "user", "content": prompt}],
+        "messages": messages or [{"role": "user", "content": prompt}],
     }
+    if system:
+        payload["system"] = system
     try:
         response = requests.post(MESSAGES_URL, headers=headers, json=payload, timeout=40)
     except requests.RequestException as exc:

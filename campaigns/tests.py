@@ -106,6 +106,27 @@ class CampaignAndSearchTests(TestCase):
         self.assertEqual(document.title, "brief.pdf")
 
     @override_settings(ANTHROPIC_API_KEY="")
+    def test_creator_list_discover_panel_filters_by_natural_language(self):
+        page = self.client.get(reverse("creators:directory"))
+        self.assertContains(page, "Discover")
+        self.assertContains(page, self.creator.display_name)
+        self.assertContains(page, self.other.display_name)
+        self.client.post(
+            reverse("creators:discover_chat"),
+            {
+                "message": "Find gaming creators in India with 50K–500K followers, strong engagement, and an audience relevant to mobile gaming campaigns.",
+            },
+        )
+        narrowed = self.client.post(reverse("creators:discover_chat"), {"message": "only YouTube"})
+        self.assertEqual(narrowed.status_code, 302)
+        filtered = self.client.get(narrowed.url)
+        self.assertContains(filtered, self.creator.display_name)
+        self.assertNotContains(filtered, self.other.display_name)
+        self.assertContains(filtered, "only YouTube")
+        self.assertContains(filtered, "Location India")
+        self.assertContains(filtered, "youtube")
+
+    @override_settings(ANTHROPIC_API_KEY="")
     def test_search_returns_database_backed_india_gamer(self):
         result = search_creators(
             "Find gaming creators in India with 50K–500K followers, strong engagement, and an audience relevant to mobile gaming campaigns.",

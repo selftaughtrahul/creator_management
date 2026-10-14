@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from accounts.models import StudioProfile
@@ -17,8 +18,10 @@ from creators.forms import (
     CreatorProfileForm,
     EnrichmentRequestForm,
 )
+from campaigns.search import search_creators
 from creators.jobs import enqueue_job, process_pending_jobs, retry_job
 from creators.metrics import creator_metrics
+from creators.parser import chat_turn, criteria_active, empty_criteria
 from creators.models import (
     Classification,
     ClassificationLabel,
@@ -216,15 +219,69 @@ def respond_offer(request, pk):
     return redirect("creators:my_campaign", pk=offer.campaign_id)
 
 
+DISCOVER_SESSION = "creator_discover_chat"
+
+
 @permission_required("creators")
 def creator_directory(request):
-    rows = CreatorProfile.objects.select_related("user")
     query = (request.GET.get("q") or "").strip()
-    if query:
-        rows = rows.filter(display_name__icontains=query)
-    page = Paginator(rows, 12).get_page(request.GET.get("page"))
-    cards = [{"creator": creator, "metrics": creator_metrics(creator)} for creator in page]
-    return render(request, "creators/directory.html", {"page": page, "cards": cards, "q": query})
+    chat = request.session.get(DISCOVER_SESSION) or {}
+    criteria = chat.get("criteria") or empty_criteria()
+    results = None
+    if criteria_active(criteria):
+        results = search_creators(
+            criteria=criteria,
+            page=request.GET.get("page") or 1,
+            per_page=12,
+            filters={"name": query} if query else None,
+        )
+        results["parsed"] = {"parser": chat.get("parser") or "rules", "raw_query": ""}
+        page = results["page"]
+        cards = list(page.object_list)
+    else:
+        rows = CreatorProfile.objects.select_related("user")
+        if query:
+            rows = rows.filter(display_name__icontains=query)
+        page = Paginator(rows, 12).get_page(request.GET.get("page"))
+        cards = [{"creator": creator, "metrics": creator_metrics(creator)} for creator in page]
+    return render(
+        request,
+        "creators/directory.html",
+        {
+            "page": page,
+            "cards": cards,
+            "q": query,
+            "chat_messages": chat.get("messages") or [],
+            "results": results,
+            "open_discover": request.GET.get("chat") == "1",
+        },
+    )
+
+
+@permission_required("creators")
+@require_POST
+def discover_chat(request):
+    if request.POST.get("clear"):
+        request.session.pop(DISCOVER_SESSION, None)
+        return redirect("creators:directory")
+    message = (request.POST.get("message") or "").strip()
+    state = request.session.get(DISCOVER_SESSION) or {
+        "messages": [],
+        "criteria": empty_criteria(),
+        "parser": "rules",
+    }
+    if message:
+        turn = chat_turn(state.get("messages") or [], state.get("criteria") or empty_criteria(), message)
+        history = list(state.get("messages") or [])
+        history.append({"role": "user", "text": message})
+        history.append({"role": "assistant", "text": turn["reply"]})
+        request.session[DISCOVER_SESSION] = {
+            "messages": history[-16:],
+            "criteria": turn["criteria"],
+            "parser": turn["parser"],
+        }
+        request.session.modified = True
+    return redirect(f"{reverse('creators:directory')}?chat=1")
 
 
 @permission_required("creators")

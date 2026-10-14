@@ -14,6 +14,7 @@ urlpatterns = [
     path("creators/invitations/<int:pk>/respond/", views.respond_invitation, name="respond_invitation"),
     path("creators/offers/<int:pk>/respond/", views.respond_offer, name="respond_offer"),
     path("studio/creators/", views.creator_directory, name="directory"),
+    path("studio/creators/chat/", views.discover_chat, name="discover_chat"),
     path("studio/creators/<int:pk>/", views.creator_detail, name="detail"),
     path("studio/creators/<int:pk>/classify/", views.classify_now, name="classify"),
     path("studio/creators/<int:pk>/review/", views.review_classification, name="review"),

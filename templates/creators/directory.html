@@ -3,27 +3,93 @@
 {% block title %}Creators · Awisee{% endblock %}
 {% block page_heading %}Creators{% endblock %}
 {% block content %}
-  <form class="filter-bar" method="get">
-    <div class="field"><label>Search</label><input type="text" name="q" value="{{ q }}" placeholder="Name"></div>
-    <button class="btn-line" type="submit">Filter</button>
-  </form>
+  <div class="page-head">
+    <form class="filter-bar" method="get" action="{% url 'creators:directory' %}">
+      <div class="field"><label>Search</label><input type="text" name="q" value="{{ q }}" placeholder="Name"></div>
+      <button class="btn-line" type="submit">Filter</button>
+    </form>
+    <button class="btn-accent" type="button" data-bs-toggle="offcanvas" data-bs-target="#discoverDrawer" aria-controls="discoverDrawer">Discover</button>
+  </div>
+  {% if results %}
+    <p class="muted">{{ results.total }} creator{{ results.total|pluralize }} match this conversation. Location {{ results.criteria.location|default:"any" }}, followers {{ results.criteria.follower_min|default:"—" }}–{{ results.criteria.follower_max|default:"—" }}, platforms {{ results.criteria.platforms|join:", "|default:"any" }}, niche {{ results.criteria.niche|default:"any" }}.</p>
+  {% endif %}
   <section class="panel">
     <table class="data">
       <thead><tr><th>Creator</th><th>Location</th><th>Followers</th><th>Engagement</th><th>Status</th></tr></thead>
       <tbody>
         {% for row in cards %}
           <tr>
-            <td><a href="{% url 'creators:detail' row.creator.pk %}">{{ row.creator.display_name }}</a><div class="badge-source">{{ row.creator.user.email }}</div></td>
+            <td>
+              <a href="{% url 'creators:detail' row.creator.pk %}">{{ row.creator.display_name }}</a>
+              <div class="badge-source">{{ row.creator.user.email }}</div>
+              {% if row.reasons %}<div class="badge-source">{{ row.reasons.0 }}</div>{% endif %}
+            </td>
             <td>{{ row.metrics.location.value|default:"unavailable" }}<div class="badge-source">{{ row.metrics.location.source }}</div></td>
             <td>{% if row.metrics.followers.value is not None %}{{ row.metrics.followers.value|intcomma }}{% else %}unavailable{% endif %}<div class="badge-source">{{ row.metrics.followers.source }}</div></td>
             <td>{% if row.metrics.engagement.value is not None %}{{ row.metrics.engagement.value }}%{% else %}unavailable{% endif %}<div class="badge-source">{{ row.metrics.engagement.source }}</div></td>
             <td>{{ row.creator.get_status_display }}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="5">No creator profiles yet.</td></tr>
+          <tr><td colspan="5">{% if results %}No creators match this conversation.{% else %}No creator profiles yet.{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
     {% include "partials/pager.html" %}
   </section>
+  <div class="offcanvas offcanvas-end discover-drawer" tabindex="-1" id="discoverDrawer" aria-labelledby="discoverDrawerLabel">
+    <div class="chat-top">
+      <div>
+        <h2 id="discoverDrawerLabel">Discover</h2>
+        <p>{% if results %}{{ results.total }} matching creator{{ results.total|pluralize }}{% else %}Ask in plain language{% endif %}</p>
+      </div>
+      <div class="chat-top-actions">
+        {% if chat_messages %}
+          <form method="post" action="{% url 'creators:discover_chat' %}">
+            {% csrf_token %}
+            <button class="btn-line" type="submit" name="clear" value="1">Start over</button>
+          </form>
+        {% endif %}
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+    </div>
+    <div class="discover-chat" id="discoverChat">
+      <div class="chat-row assistant">
+        <span class="chat-avatar" aria-hidden="true">A</span>
+        <div class="chat-message">
+          <div class="chat-name">Discover</div>
+          <div class="chat-bubble">Ask in plain language. I keep the filters as we talk and only match creators already stored here.</div>
+        </div>
+      </div>
+      {% for item in chat_messages %}
+        <div class="chat-row {{ item.role }}">
+          {% if item.role != "user" %}<span class="chat-avatar" aria-hidden="true">A</span>{% endif %}
+          <div class="chat-message">
+            <div class="chat-name">{% if item.role == "user" %}You{% else %}Discover{% endif %}</div>
+            <div class="chat-bubble">{{ item.text }}</div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    <form method="post" action="{% url 'creators:discover_chat' %}" class="discover-composer">
+      {% csrf_token %}
+      <input type="text" name="message" placeholder="Message Discover" autocomplete="off" required>
+      <button class="btn-accent" type="submit">Send</button>
+    </form>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const drawer = document.getElementById("discoverDrawer");
+      const log = document.getElementById("discoverChat");
+      function scrollChat() {
+        if (log) log.scrollTop = log.scrollHeight;
+      }
+      if (drawer) drawer.addEventListener("shown.bs.offcanvas", scrollChat);
+      {% if open_discover %}
+      if (drawer && window.bootstrap) {
+        window.bootstrap.Offcanvas.getOrCreateInstance(drawer).show();
+      }
+      {% endif %}
+      scrollChat();
+    });
+  </script>
 {% endblock %}

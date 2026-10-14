@@ -19,7 +19,7 @@ from creators.models import (
     EnrichmentJob,
     Subcategory,
 )
-from creators.parser import parse_query
+from creators.parser import chat_turn, parse_query
 from creators.taxonomy import ensure_taxonomy
 from networks.models import ContentItem, MetricSnapshot, SocialAccount
 
@@ -141,6 +141,21 @@ class ParserAndMetricsTests(TestCase):
         self.assertEqual(criteria["niche"], "gaming")
         self.assertEqual(criteria["subcategory"], "mobile-gaming")
         self.assertEqual(criteria["min_engagement"], "3.0")
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_chat_keeps_earlier_filters(self):
+        first = chat_turn([], {}, "Find gaming creators in India", use_anthropic=False)
+        second = chat_turn(
+            [{"role": "user", "text": "Find gaming creators in India"}, {"role": "assistant", "text": first["reply"]}],
+            first["criteria"],
+            "only YouTube, and at least 100K followers",
+            use_anthropic=False,
+        )
+        self.assertEqual(second["criteria"]["location"], "India")
+        self.assertEqual(second["criteria"]["niche"], "gaming")
+        self.assertEqual(second["criteria"]["platforms"], ["youtube"])
+        self.assertEqual(second["criteria"]["follower_min"], 100000)
+        self.assertIn("India", second["reply"])
 
     def test_metrics_never_invent_followers(self):
         creator = make_creator("empty@example.com", "empty")
