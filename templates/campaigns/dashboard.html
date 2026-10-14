@@ -101,11 +101,19 @@
         <p class="muted">No feedback in this filter.</p>
       {% endfor %}
       <h3 class="mt-3">Review queue</h3>
-      {% for row in review_queue %}
-        <p><a href="{% url 'creators:detail' row.creator_id %}">{{ row.creator }}</a> · {{ row.category.name|default:"unclassified" }}</p>
-      {% empty %}
-        <p class="muted">Empty.</p>
-      {% endfor %}
+      <table class="data">
+        <thead><tr><th>Creator</th><th>Category</th></tr></thead>
+        <tbody>
+          {% for row in review_queue %}
+            <tr>
+              <td><a href="{% url 'creators:detail' row.creator_id %}">{{ row.creator }}</a></td>
+              <td>{{ row.category.name|default:"unclassified" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2">Empty.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </article>
   </section>
 {% endblock %}

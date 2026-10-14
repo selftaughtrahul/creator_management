@@ -14,77 +14,92 @@
     <p class="muted">{{ results.total }} creator{{ results.total|pluralize }} match this conversation. Location {{ results.criteria.location|default:"any" }}, followers {{ results.criteria.follower_min|default:"—" }}–{{ results.criteria.follower_max|default:"—" }}, platforms {{ results.criteria.platforms|join:", "|default:"any" }}, niche {{ results.criteria.niche|default:"any" }}.</p>
   {% endif %}
   {% if cards %}
-    <div class="accordion creator-accordion" id="creatorStats">
-      {% for row in cards %}
-        <div class="accordion-item">
-          <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#creator-metrics-{{ row.creator.pk }}" aria-expanded="false" aria-controls="creator-metrics-{{ row.creator.pk }}">
-              <span class="creator-acc-main">
-                <strong>{{ row.creator.display_name }}</strong>
-                <span class="badge-source">{{ row.creator.user.email }} · {{ row.metrics.location.value|default:"location unavailable" }} · {{ row.creator.get_status_display }}</span>
-              </span>
-              <span class="creator-statline">
-                <span><small>Followers</small><strong>{% if row.growth.followers is not None %}{{ row.growth.followers|intcomma }}{% else %}—{% endif %}</strong>{% if row.growth.follower_growth %}<em class="{% if row.growth.follower_growth.absolute > 0 %}up{% elif row.growth.follower_growth.absolute < 0 %}down{% endif %}">{% if row.growth.follower_growth.absolute > 0 %}+{% endif %}{{ row.growth.follower_growth.absolute|intcomma }} 30d</em>{% else %}<em>30d —</em>{% endif %}</span>
-                <span><small>Views</small><strong>{% if row.growth.views is not None %}{{ row.growth.views|intcomma }}{% else %}—{% endif %}</strong><em>{% if row.growth.avg_views is not None %}avg {{ row.growth.avg_views|intcomma }}{% else %}30d avg —{% endif %}</em></span>
-                <span><small>Engagement</small><strong>{% if row.growth.engagement is not None %}{{ row.growth.engagement }}%{% else %}—{% endif %}</strong><em>{% if row.growth.avg_engagement is not None %}avg {{ row.growth.avg_engagement|intcomma }}{% else %}30d avg —{% endif %}</em></span>
-                <span><small>Posts 30d</small><strong>{{ row.growth.posts }}</strong></span>
-              </span>
-            </button>
-          </h2>
-          <div id="creator-metrics-{{ row.creator.pk }}" class="accordion-collapse collapse" data-bs-parent="#creatorStats">
-            <div class="accordion-body">
-              {% if row.accounts %}
-                <div class="table-wrap">
-                  <table class="data platform-table">
-                    <thead>
-                      <tr>
-                        <th>Platform</th>
-                        <th>Snapshot</th>
-                        <th>Followers</th>
-                        <th>Following</th>
-                        <th>Posts</th>
-                        <th>Views</th>
-                        <th>Likes</th>
-                        <th>Comments</th>
-                        <th>Shares</th>
-                        <th>Impressions</th>
-                        <th>Reach</th>
-                        <th>Saves</th>
-                        <th>Watch time</th>
-                        <th>Audience</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% for account_row in row.accounts %}
-                        <tr>
-                          <td>{{ account_row.account.get_platform_display }}{% if account_row.account.username %} · @{{ account_row.account.username }}{% endif %}{% if account_row.account.is_sample %} · sample{% endif %}</td>
-                          <td>{% if account_row.snapshot %}{{ account_row.snapshot.captured_at|date:"d M Y" }}{% else %}unavailable{% endif %}</td>
-                          <td>{% if account_row.snapshot %}{{ account_row.snapshot.followers|intcomma }}{% else %}—{% endif %}</td>
-                          <td>{% if account_row.snapshot %}{{ account_row.snapshot.following|intcomma }}{% else %}—{% endif %}</td>
-                          <td>{% if account_row.snapshot %}{{ account_row.snapshot.content_count|intcomma }}{% else %}{{ account_row.content.posts }}{% endif %}</td>
-                          <td>{% if account_row.snapshot %}{{ account_row.snapshot.views|intcomma }}{% else %}—{% endif %}</td>
-                          <td>{% if account_row.snapshot %}{{ account_row.snapshot.likes|intcomma }}{% else %}—{% endif %}</td>
-                          <td>{% if account_row.snapshot %}{{ account_row.snapshot.comments|intcomma }}{% else %}—{% endif %}</td>
-                          <td>{% if account_row.snapshot %}{{ account_row.snapshot.shares|intcomma }}{% else %}—{% endif %}</td>
-                          <td>{% if account_row.snapshot %}{{ account_row.snapshot.impressions|intcomma }}{% else %}—{% endif %}</td>
-                          <td>{% if account_row.snapshot %}{{ account_row.snapshot.reach|intcomma }}{% else %}—{% endif %}</td>
-                          <td>{{ account_row.content.saves|intcomma }}</td>
-                          <td>{{ account_row.content.watch_time_seconds|intcomma }}s</td>
-                          <td>{% for part in account_row.breakdowns %}{{ part.label }} {{ part.count|intcomma }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
-                        </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-                </div>
-              {% else %}
-                <p class="muted mb-0">No connected account, so platform metrics are unavailable.</p>
-              {% endif %}
-              <p class="mb-0"><a href="{% url 'creators:detail' row.creator.pk %}">Open profile</a></p>
-            </div>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
+    <section class="panel">
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Location</th>
+              <th>Status</th>
+              <th>Followers</th>
+              <th>30d</th>
+              <th>Views</th>
+              <th>Engagement</th>
+              <th>Posts 30d</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in cards %}
+              <tr>
+                <td><a href="{% url 'creators:detail' row.creator.pk %}">{{ row.creator.display_name }}</a></td>
+                <td>{{ row.creator.user.email }}</td>
+                <td>{{ row.metrics.location.value|default:"—" }}</td>
+                <td>{{ row.creator.get_status_display }}</td>
+                <td>{% if row.growth.followers is not None %}{{ row.growth.followers|intcomma }}{% else %}—{% endif %}</td>
+                <td>{% if row.growth.follower_growth %}{% if row.growth.follower_growth.absolute > 0 %}+{% endif %}{{ row.growth.follower_growth.absolute|intcomma }}{% else %}—{% endif %}</td>
+                <td>{% if row.growth.views is not None %}{{ row.growth.views|intcomma }}{% else %}—{% endif %}</td>
+                <td>{% if row.growth.engagement is not None %}{{ row.growth.engagement }}%{% else %}—{% endif %}</td>
+                <td>{{ row.growth.posts }}</td>
+                <td><button class="btn-line" type="button" data-bs-toggle="collapse" data-bs-target="#creator-metrics-{{ row.creator.pk }}" aria-expanded="false" aria-controls="creator-metrics-{{ row.creator.pk }}">Metrics</button></td>
+              </tr>
+              <tr class="metrics-slot">
+                <td colspan="10">
+                  <div id="creator-metrics-{{ row.creator.pk }}" class="collapse">
+                    {% if row.accounts %}
+                      <div class="table-wrap">
+                        <table class="data platform-table">
+                          <thead>
+                            <tr>
+                              <th>Platform</th>
+                              <th>Snapshot</th>
+                              <th>Followers</th>
+                              <th>Following</th>
+                              <th>Posts</th>
+                              <th>Views</th>
+                              <th>Likes</th>
+                              <th>Comments</th>
+                              <th>Shares</th>
+                              <th>Impressions</th>
+                              <th>Reach</th>
+                              <th>Saves</th>
+                              <th>Watch time</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for account_row in row.accounts %}
+                              <tr>
+                                <td>{{ account_row.account.get_platform_display }}{% if account_row.account.username %} · @{{ account_row.account.username }}{% endif %}{% if account_row.account.is_sample %} · sample{% endif %}</td>
+                                <td>{% if account_row.snapshot %}{{ account_row.snapshot.captured_at|date:"d M Y" }}{% else %}unavailable{% endif %}</td>
+                                <td>{% if account_row.snapshot %}{{ account_row.snapshot.followers|intcomma }}{% else %}—{% endif %}</td>
+                                <td>{% if account_row.snapshot %}{{ account_row.snapshot.following|intcomma }}{% else %}—{% endif %}</td>
+                                <td>{% if account_row.snapshot %}{{ account_row.snapshot.content_count|intcomma }}{% else %}{{ account_row.content.posts }}{% endif %}</td>
+                                <td>{% if account_row.snapshot %}{{ account_row.snapshot.views|intcomma }}{% else %}—{% endif %}</td>
+                                <td>{% if account_row.snapshot %}{{ account_row.snapshot.likes|intcomma }}{% else %}—{% endif %}</td>
+                                <td>{% if account_row.snapshot %}{{ account_row.snapshot.comments|intcomma }}{% else %}—{% endif %}</td>
+                                <td>{% if account_row.snapshot %}{{ account_row.snapshot.shares|intcomma }}{% else %}—{% endif %}</td>
+                                <td>{% if account_row.snapshot %}{{ account_row.snapshot.impressions|intcomma }}{% else %}—{% endif %}</td>
+                                <td>{% if account_row.snapshot %}{{ account_row.snapshot.reach|intcomma }}{% else %}—{% endif %}</td>
+                                <td>{{ account_row.content.saves|intcomma }}</td>
+                                <td>{{ account_row.content.watch_time_seconds|intcomma }}s</td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                    {% else %}
+                      <p class="muted mb-0">No connected account, so platform metrics are unavailable.</p>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
   {% else %}
     <section class="panel empty">
       <p class="mb-0">{% if results %}No creators match this conversation.{% else %}No creator profiles yet.{% endif %}</p>

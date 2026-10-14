@@ -485,6 +485,8 @@ table.stats th, table.stats td { white-space: nowrap; }
   margin-bottom: 16px;
 }
 .filter-bar .field { margin: 0; min-width: 160px; }
+tr.metrics-slot td { padding: 0 8px; border-bottom: 0; }
+tr.metrics-slot .collapse.show { padding: 8px 0 12px; }
 .creator-accordion { display: flex; flex-direction: column; gap: 6px; }
 .creator-accordion .accordion-item { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
 .creator-accordion .accordion-button { display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; white-space: nowrap; background: var(--card); color: var(--ink); box-shadow: none; min-height: 0; padding: 6px 36px 6px 12px; }

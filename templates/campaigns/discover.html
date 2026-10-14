@@ -18,37 +18,47 @@
         <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#enrichSearchDrawer">Request collection</button>
       </section>
     {% else %}
-      {% for row in results.page %}
-        <article class="panel mt-3">
-          <div class="page-head">
-            <div>
-              <h2><a href="{% url 'creators:detail' row.creator.pk %}">{{ row.creator.display_name }}</a></h2>
-              <p class="muted">Score {{ row.score }} · {{ row.metrics.location.value|default:"location unavailable" }} · {{ row.metrics.niche.value|default:"niche unavailable" }}</p>
-            </div>
-            {% if campaign %}
-              <div class="actions">
-                <form method="post" action="{% url 'campaigns:shortlist' campaign.pk row.creator.pk %}">
-                  {% csrf_token %}
-                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                  <button class="btn-accent" type="submit">Shortlist</button>
-                </form>
-              </div>
-            {% endif %}
-          </div>
-          <p>
-            Followers: {% if row.metrics.followers.value is not None %}{{ row.metrics.followers.value|intcomma }}{% else %}unavailable{% endif %}
-            <span class="badge-source">{{ row.metrics.followers.source }}</span>
-            · Engagement: {% if row.metrics.engagement.value is not None %}{{ row.metrics.engagement.value }}%{% else %}unavailable{% endif %}
-            <span class="badge-source">{{ row.metrics.engagement.source }}</span>
-            · Views: {% if row.metrics.views.value is not None %}{{ row.metrics.views.value|intcomma }}{% else %}unavailable{% endif %}
-          </p>
-          {% if row.missing %}<p class="notice">Missing: {{ row.missing|join:", " }}</p>{% endif %}
-          <ul class="reason-list">{% for reason in row.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
-          {% if campaign %}
-            <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#feedbackDrawer" data-form-action="{% url 'campaigns:feedback_submit' campaign.pk row.creator.pk %}" data-drawer-title="Feedback for {{ row.creator.display_name }}">Save feedback</button>
-          {% endif %}
-        </article>
-      {% endfor %}
+      <section class="panel mt-3">
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Creator</th>
+                <th>Score</th>
+                <th>Location</th>
+                <th>Niche</th>
+                <th>Followers</th>
+                <th>Engagement</th>
+                <th>Views</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in results.page %}
+                <tr>
+                  <td><a href="{% url 'creators:detail' row.creator.pk %}">{{ row.creator.display_name }}</a></td>
+                  <td>{{ row.score }}</td>
+                  <td>{{ row.metrics.location.value|default:"—" }}</td>
+                  <td>{{ row.metrics.niche.value|default:"—" }}</td>
+                  <td>{% if row.metrics.followers.value is not None %}{{ row.metrics.followers.value|intcomma }}{% else %}—{% endif %}</td>
+                  <td>{% if row.metrics.engagement.value is not None %}{{ row.metrics.engagement.value }}%{% else %}—{% endif %}</td>
+                  <td>{% if row.metrics.views.value is not None %}{{ row.metrics.views.value|intcomma }}{% else %}—{% endif %}</td>
+                  <td>
+                    {% if campaign %}
+                      <form method="post" action="{% url 'campaigns:shortlist' campaign.pk row.creator.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button class="btn-accent" type="submit">Shortlist</button>
+                      </form>
+                      <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#feedbackDrawer" data-form-action="{% url 'campaigns:feedback_submit' campaign.pk row.creator.pk %}" data-drawer-title="Feedback for {{ row.creator.display_name }}">Feedback</button>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
       {% include "partials/pager.html" with page=results.page %}
     {% endif %}
   {% endif %}
