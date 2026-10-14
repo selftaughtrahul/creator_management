@@ -4,7 +4,12 @@
 {% block content %}
   <div class="page-head">
     <p>Create a brief, then discover and shortlist creators from stored profiles.</p>
-    <a class="btn-accent" href="{% url 'campaigns:list' %}?new=1">New campaign</a>
+    <div class="actions">
+      <a class="btn-line" href="{% url 'campaigns:export_file' %}">Export CSV</a>
+      <a class="btn-line" href="{% url 'campaigns:export_file' %}?template=1">CSV template</a>
+      <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#importDrawer">Import CSV</button>
+      <a class="btn-accent" href="{% url 'campaigns:list' %}?new=1">New campaign</a>
+    </div>
   </div>
   <section class="panel">
     <table class="data">
@@ -38,6 +43,26 @@
         <div class="actions">
           <button class="btn-accent" type="submit">{% if editing %}Save changes{% else %}Save campaign{% endif %}</button>
           <a class="btn-line" href="{% url 'campaigns:list' %}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="offcanvas offcanvas-end campaign-drawer" tabindex="-1" id="importDrawer" aria-labelledby="importDrawerLabel">
+    <div class="offcanvas-header">
+      <h2 id="importDrawerLabel">Import campaigns</h2>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <p class="muted">{{ column_help }}</p>
+      <form method="post" action="{% url 'campaigns:import_file' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="field">
+          <label for="campaignCsv">CSV file</label>
+          <input id="campaignCsv" type="file" name="file" accept=".csv,text/csv" required>
+        </div>
+        <div class="actions">
+          <button class="btn-accent" type="submit">Import</button>
+          <button class="btn-line" type="button" data-bs-dismiss="offcanvas">Cancel</button>
         </div>
       </form>
     </div>

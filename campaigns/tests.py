@@ -262,3 +262,76 @@ class StudioSampleDataTests(TestCase):
         self.assertFalse(SocialAccount.objects.filter(is_sample=True).exists())
         self.assertFalse(Campaign.objects.filter(name__startswith="Sample campaign").exists())
         self.assertNotContains(self.client.get(reverse("creators:directory")), "Mira Kapoor")
+
+
+class CampaignTransferTests(TestCase):
+    def setUp(self):
+        ensure_taxonomy()
+        self.team = make_user("lead@example.com", "lead")
+        self.client.force_login(self.team)
+
+    def test_import_creates_and_rejects_invalid_rows(self):
+        good = (
+            "id,name,objective,budget,niche,subcategory,location,platforms,follower_min,follower_max,min_engagement,audience_notes,status\n"
+            ",Summer push,Launch,25000.50,gaming,mobile-gaming,India,\"youtube,instagram\",1000,50000,3.5,Mobile players,active\n"
+        ).encode()
+        created = self.client.post(
+            reverse("campaigns:import_file"),
+            {"file": SimpleUploadedFile("campaigns.csv", good, content_type="text/csv")},
+        )
+        self.assertRedirects(created, reverse("campaigns:list"))
+        campaign = Campaign.objects.get(name="Summer push")
+        self.assertEqual(campaign.owner, self.team)
+        self.assertEqual(campaign.niche.slug, "gaming")
+        self.assertEqual(campaign.subcategory.slug, "mobile-gaming")
+        self.assertEqual(campaign.platforms, ["youtube", "instagram"])
+        self.assertEqual(campaign.status, Campaign.Status.ACTIVE)
+        self.assertEqual(campaign.budget, Decimal("25000.50"))
+
+        bad = (
+            "id,name,objective,budget,niche,subcategory,location,platforms,follower_min,follower_max,min_engagement,audience_notes,status\n"
+            ",Broken,,-5,missing,mobile-gaming,India,tiktok,500,100,3,,draft\n"
+        ).encode()
+        rejected = self.client.post(
+            reverse("campaigns:import_file"),
+            {"file": SimpleUploadedFile("campaigns.csv", bad, content_type="text/csv")},
+            follow=True,
+        )
+        self.assertRedirects(rejected, reverse("campaigns:list"))
+        self.assertEqual(Campaign.objects.filter(name="Broken").count(), 0)
+        self.assertContains(rejected, "does not exist")
+
+    def test_export_round_trip_updates_existing_campaign(self):
+        campaign = Campaign.objects.create(
+            owner=self.team,
+            name="Original",
+            niche=Category.objects.get(slug="gaming"),
+            status=Campaign.Status.DRAFT,
+            platforms=["youtube"],
+        )
+        exported = self.client.get(reverse("campaigns:export_file"))
+        self.assertEqual(exported.status_code, 200)
+        text = exported.content.decode("utf-8-sig")
+        self.assertIn("Original", text)
+        updated = text.replace("Original", "Renamed")
+        response = self.client.post(
+            reverse("campaigns:import_file"),
+            {"file": SimpleUploadedFile("campaigns.csv", updated.encode(), content_type="text/csv")},
+        )
+        self.assertRedirects(response, reverse("campaigns:list"))
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.name, "Renamed")
+        self.assertEqual(Campaign.objects.count(), 1)
+
+    def test_template_includes_one_example_row_that_import_ignores(self):
+        downloaded = self.client.get(reverse("campaigns:export_file") + "?template=1")
+        text = downloaded.content.decode("utf-8-sig")
+        self.assertIn("Example campaign — delete this row", text)
+        self.assertEqual(text.strip().count("\n"), 1)
+        response = self.client.post(
+            reverse("campaigns:import_file"),
+            {"file": SimpleUploadedFile("campaigns-template.csv", downloaded.content, content_type="text/csv")},
+            follow=True,
+        )
+        self.assertContains(response, "Delete the example row")
+        self.assertEqual(Campaign.objects.count(), 0)

@@ -1,5 +1,6 @@
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -235,3 +236,65 @@ class CreatorAccessTests(TestCase):
         self.assertEqual(user.studio.role, StudioProfile.Role.CREATOR)
         self.assertTrue(CreatorProfile.objects.filter(user=user).exists())
         self.assertFalse(EmailAddress.objects.get(email="riya@example.com").verified)
+
+
+class CreatorTransferTests(TestCase):
+    def setUp(self):
+        ensure_taxonomy()
+        self.team = make_user("lead@example.com", "lead")
+        self.client.force_login(self.team)
+        self.creator = make_creator("india-gamer@example.com", "indiagamer", display_name="India Gamer")
+
+    def test_import_creates_creator_and_rejects_staff_email(self):
+        payload = (
+            "email,display_name,bio,location,audience_notes,niches,rate_amount,rate_currency,share_metrics,discoverable,password\n"
+            "new-creator@example.com,New Creator,Makes videos,India,Mobile players,mobile-gaming,15000.00,INR,yes,yes,Northline-Studio-2026!\n"
+            "lead@example.com,Staff Person,,,,,,INR,yes,yes,\n"
+        ).encode()
+        rejected = self.client.post(
+            reverse("creators:import_file"),
+            {"file": SimpleUploadedFile("creators.csv", payload, content_type="text/csv")},
+            follow=True,
+        )
+        self.assertRedirects(rejected, reverse("creators:directory"))
+        self.assertFalse(User.objects.filter(email="new-creator@example.com").exists())
+        self.assertContains(rejected, "staff account")
+
+        good = (
+            "email,display_name,bio,location,audience_notes,niches,rate_amount,rate_currency,share_metrics,discoverable\n"
+            "new-creator@example.com,New Creator,Makes videos,India,Mobile players,mobile-gaming,15000.00,INR,yes,yes\n"
+            "india-gamer@example.com,India Gamer Updated,Updated bio,India,Mobile players,pc-gaming,20000,INR,yes,no\n"
+        ).encode()
+        saved = self.client.post(
+            reverse("creators:import_file"),
+            {"file": SimpleUploadedFile("creators.csv", good, content_type="text/csv")},
+        )
+        self.assertRedirects(saved, reverse("creators:directory"))
+        created = CreatorProfile.objects.get(user__email="new-creator@example.com")
+        self.assertEqual(created.user.studio.role, StudioProfile.Role.CREATOR)
+        self.assertEqual(list(created.niches.values_list("slug", flat=True)), ["mobile-gaming"])
+        self.assertFalse(created.user.has_usable_password())
+        self.creator.refresh_from_db()
+        self.assertEqual(self.creator.display_name, "India Gamer Updated")
+        self.assertEqual(list(self.creator.niches.values_list("slug", flat=True)), ["pc-gaming"])
+        self.assertFalse(self.creator.discoverable)
+
+    def test_export_includes_creator_email_and_not_a_password(self):
+        exported = self.client.get(reverse("creators:export_file"))
+        text = exported.content.decode("utf-8-sig")
+        self.assertIn("india-gamer@example.com", text)
+        self.assertNotIn("password", text.splitlines()[0])
+
+    def test_template_includes_one_example_row_that_import_ignores(self):
+        downloaded = self.client.get(reverse("creators:export_file") + "?template=1")
+        text = downloaded.content.decode("utf-8-sig")
+        self.assertIn("example-delete-this-row@example.com", text)
+        self.assertEqual(text.strip().count("\n"), 1)
+        before = CreatorProfile.objects.count()
+        response = self.client.post(
+            reverse("creators:import_file"),
+            {"file": SimpleUploadedFile("creators-template.csv", downloaded.content, content_type="text/csv")},
+            follow=True,
+        )
+        self.assertContains(response, "Delete the example row")
+        self.assertEqual(CreatorProfile.objects.count(), before)

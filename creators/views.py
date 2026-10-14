@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from accounts.csvutil import SpreadsheetError
 from accounts.models import StudioProfile
 from accounts.permissions import creator_required, permission_required
 from accounts.utils import unique_username
@@ -30,6 +31,8 @@ from creators.models import (
     EnrichmentJob,
 )
 from creators.tools import bot_risk_indicators, brand_safety_hits, data_quality
+from creators.transfer import COLUMN_HELP as CREATOR_COLUMN_HELP
+from creators.transfer import export_creators, import_creators
 
 User = get_user_model()
 
@@ -229,6 +232,30 @@ DISCOVER_SESSION = "creator_discover_chat"
 
 
 @permission_required("creators")
+def export_creator_file(request):
+    if request.GET.get("template") == "1":
+        return export_creators([], filename="creators-template.csv", sample=True)
+    rows = CreatorProfile.objects.select_related("user").prefetch_related("niches").order_by("display_name")
+    return export_creators(rows)
+
+
+@permission_required("creators")
+@require_POST
+def import_creator_file(request):
+    try:
+        result = import_creators(request.FILES.get("file"))
+    except SpreadsheetError as exc:
+        for error in exc.errors:
+            messages.error(request, error)
+        return redirect("creators:directory")
+    notice = f"Imported {result['created']} new creator(s) and updated {result['updated']}."
+    if result["without_password"]:
+        notice += f" {result['without_password']} new account(s) have no password yet, so they cannot log in."
+    messages.success(request, notice)
+    return redirect("creators:directory")
+
+
+@permission_required("creators")
 def creator_directory(request):
     query = (request.GET.get("q") or "").strip()
     chat = request.session.get(DISCOVER_SESSION) or {}
@@ -266,6 +293,7 @@ def creator_directory(request):
             "page": page,
             "cards": cards,
             "q": query,
+            "creator_column_help": CREATOR_COLUMN_HELP,
             "chat_messages": chat.get("messages") or [],
             "results": results,
             "open_discover": request.GET.get("chat") == "1",

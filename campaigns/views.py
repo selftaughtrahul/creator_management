@@ -29,7 +29,9 @@ from campaigns.models import (
 )
 from campaigns.outreach import record_outcome, send_invitation
 from campaigns.status import apply_offer_response
+from accounts.csvutil import SpreadsheetError
 from campaigns.sample_data import delete_studio_sample, load_studio_sample
+from campaigns.transfer import COLUMN_HELP, export_campaigns, import_campaigns
 from campaigns.search import search_creators
 from creators.jobs import enqueue_job
 from creators.metrics import creator_metrics
@@ -77,6 +79,7 @@ def _campaign_list(request, form=None, open_form=False, editing=None):
             "form": form or CampaignForm(),
             "open_form": open_form,
             "editing": editing,
+            "column_help": COLUMN_HELP,
         },
     )
 
@@ -84,6 +87,30 @@ def _campaign_list(request, form=None, open_form=False, editing=None):
 @permission_required("campaigns")
 def campaign_list(request):
     return _campaign_list(request, open_form=request.GET.get("new") == "1")
+
+
+@permission_required("campaigns")
+def export_campaign_file(request):
+    if request.GET.get("template") == "1":
+        return export_campaigns([], filename="campaigns-template.csv", sample=True)
+    rows = Campaign.objects.select_related("niche", "subcategory").order_by("name")
+    return export_campaigns(rows)
+
+
+@permission_required("campaigns")
+@require_POST
+def import_campaign_file(request):
+    try:
+        result = import_campaigns(request.FILES.get("file"), request.user)
+    except SpreadsheetError as exc:
+        for error in exc.errors:
+            messages.error(request, error)
+        return redirect("campaigns:list")
+    messages.success(
+        request,
+        f"Imported {result['created']} new campaign(s) and updated {result['updated']}.",
+    )
+    return redirect("campaigns:list")
 
 
 @permission_required("campaigns")
