@@ -30,7 +30,7 @@ def creator_metrics(creator):
 
     engagement = _engagement(creator)
     niche = resolved_niche(creator)
-    classification = niche["classification"]
+    classification = niche.pop("classification")
     missing = []
     if not creator.location:
         missing.append("location")
@@ -158,8 +158,8 @@ def resolved_niche(creator):
         "value": value,
         "source": source,
         "provenance": provenance,
-        "category_slugs": category_slugs,
-        "subcategory_slugs": subcategory_slugs,
+        "category_slugs": sorted(category_slugs),
+        "subcategory_slugs": sorted(subcategory_slugs),
         "classification": classification,
     }
 

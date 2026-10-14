@@ -11,12 +11,13 @@
   </div>
   <section class="panel">
     <table class="data">
-      <thead><tr><th>Person</th><th>Role</th><th>Active</th><th></th></tr></thead>
+      <thead><tr><th>Person</th><th>Role</th><th>Email</th><th>Active</th><th></th></tr></thead>
       <tbody>
         {% for row in page %}
           <tr>
             <td>{{ row.user.get_full_name|default:row.user.email }}<div class="badge-source">{{ row.user.email }}</div></td>
             <td>{{ row.get_role_display }}</td>
+            <td>{{ row.user.email }}</td>
             <td>{% if row.user.is_active %}Yes{% else %}No{% endif %}</td>
             <td><a class="btn-line" href="{% url 'accounts:person' row.pk %}">Manage</a></td>
           </tr>

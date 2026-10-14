@@ -67,6 +67,7 @@ def score_creator(metrics, criteria):
     missing = list(metrics["missing"])
     score = 0
     eligible = True
+    creator = metrics["creator"]
 
     location = (criteria.get("location") or "").strip()
     if location:
