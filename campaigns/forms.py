@@ -1,6 +1,59 @@
+from pathlib import Path
+
 from django import forms
+from django.core.exceptions import ValidationError
 
 from campaigns.models import Campaign, Invitation, MessageTemplate, Offer, RecommendationFeedback
+
+MIN_DOCUMENT_BYTES = 10 * 1024
+MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
+ALLOWED_DOCUMENT_EXTENSIONS = {".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg"}
+
+
+class MultiFileInput(forms.FileInput):
+    allow_multiple_selected = True
+
+
+class MultiFileField(forms.FileField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("widget", MultiFileInput())
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        if data in self.empty_values:
+            return []
+        if not isinstance(data, (list, tuple)):
+            data = [data]
+        cleaned = []
+        errors = []
+        for item in data:
+            if not item or not getattr(item, "name", ""):
+                continue
+            extension = Path(item.name).suffix.lower()
+            size = item.size or 0
+            if extension not in ALLOWED_DOCUMENT_EXTENSIONS:
+                errors.append(
+                    ValidationError(f"{item.name} is not an allowed type. Use PDF, Word, PNG, or JPG.")
+                )
+                continue
+            if size < MIN_DOCUMENT_BYTES:
+                errors.append(
+                    ValidationError(f"{item.name} is {size} bytes. Each document must be at least 10 KB.")
+                )
+                continue
+            if size > MAX_DOCUMENT_BYTES:
+                errors.append(ValidationError(f"{item.name} is larger than 10 MB."))
+                continue
+            try:
+                result = super().clean(item, initial)
+            except ValidationError as exc:
+                errors.extend(exc.error_list)
+            else:
+                if result:
+                    cleaned.append(result)
+        if errors:
+            raise ValidationError(errors)
+        return cleaned
 from creators.forms import StyledForm, StyledModelForm
 from creators.models import Category, Subcategory
 from networks.models import SocialAccount
@@ -11,6 +64,11 @@ class CampaignForm(StyledModelForm):
         choices=SocialAccount.Platform.choices,
         required=False,
         widget=forms.CheckboxSelectMultiple,
+    )
+    documents = MultiFileField(
+        required=False,
+        label="Documents",
+        help_text="Optional. PDF, Word, PNG, or JPG. Each file must be at least 10 KB and no larger than 10 MB.",
     )
 
     class Meta:

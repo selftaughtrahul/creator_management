@@ -293,6 +293,18 @@ button, input, textarea, select { font-family: inherit; }
   display: grid;
   place-items: center;
 }
+.campaign-drawer {
+  width: min(440px, 100vw);
+  background: var(--card);
+  color: var(--ink);
+  border-left: 1px solid var(--line);
+}
+.campaign-drawer .offcanvas-header {
+  align-items: center;
+  padding: 18px 20px 8px;
+}
+.campaign-drawer h2 { font-size: 28px; margin: 0; }
+.campaign-drawer .offcanvas-body { padding: 8px 20px 28px; }
 .app-content { padding: 24px 28px 48px; }
 .page-head, .split, .stat-grid, .card-grid, .two-col { display: grid; gap: 16px; }
 .page-head { grid-template-columns: 1fr auto; align-items: end; margin-bottom: 18px; }

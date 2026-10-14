@@ -21,6 +21,7 @@ from campaigns.match import match_campaign
 from campaigns.models import (
     Campaign,
     CampaignCreator,
+    CampaignDocument,
     Invitation,
     MessageTemplate,
     Offer,
@@ -40,37 +41,63 @@ def dashboard(request):
     return render(request, "campaigns/dashboard.html", studio_dashboard(request))
 
 
-@permission_required("campaigns")
-def campaign_list(request):
+def _campaign_list(request, form=None, open_form=False):
     rows = Campaign.objects.select_related("owner", "niche")
     status = request.GET.get("status")
     if status:
         rows = rows.filter(status=status)
     page = Paginator(rows, 12).get_page(request.GET.get("page"))
-    return render(request, "campaigns/list.html", {"page": page, "status": status})
+    return render(
+        request,
+        "campaigns/list.html",
+        {
+            "page": page,
+            "status": status,
+            "form": form or CampaignForm(),
+            "open_form": open_form,
+        },
+    )
+
+
+@permission_required("campaigns")
+def campaign_list(request):
+    return _campaign_list(request)
 
 
 @permission_required("campaigns")
 def campaign_create(request):
-    form = CampaignForm(request.POST or None)
+    form = CampaignForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         campaign = form.save(commit=False)
         campaign.owner = request.user
         campaign.save()
+        _store_documents(campaign, form.cleaned_data.get("documents") or [], request.user)
         messages.success(request, "Campaign saved.")
         return redirect("campaigns:detail", pk=campaign.pk)
-    return render(request, "campaigns/form.html", {"form": form, "title": "New campaign"})
+    return _campaign_list(request, form=form, open_form=True)
 
 
 @permission_required("campaigns")
 def campaign_edit(request, pk):
     campaign = get_object_or_404(Campaign, pk=pk)
-    form = CampaignForm(request.POST or None, instance=campaign)
+    form = CampaignForm(request.POST or None, request.FILES or None, instance=campaign)
     if request.method == "POST" and form.is_valid():
         form.save()
+        _store_documents(campaign, form.cleaned_data.get("documents") or [], request.user)
         messages.success(request, "Campaign updated.")
         return redirect("campaigns:detail", pk=campaign.pk)
     return render(request, "campaigns/form.html", {"form": form, "title": "Edit campaign", "campaign": campaign})
+
+
+def _store_documents(campaign, files, user):
+    for uploaded in files:
+        CampaignDocument.objects.create(
+            campaign=campaign,
+            title=(uploaded.name or "Document")[:180],
+            file=uploaded,
+            size=uploaded.size,
+            uploaded_by=user,
+        )
 
 
 @permission_required("campaigns")

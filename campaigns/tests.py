@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -9,6 +10,7 @@ from accounts.models import StudioProfile
 from campaigns.models import (
     Campaign,
     CampaignCreator,
+    CampaignDocument,
     Invitation,
     MessageTemplate,
     RecommendationFeedback,
@@ -81,6 +83,27 @@ class CampaignAndSearchTests(TestCase):
         campaign.refresh_from_db()
         self.assertEqual(campaign.objective, "Updated brief")
         self.assertEqual(campaign.budget, Decimal("60000"))
+
+    def test_campaign_document_must_be_at_least_10kb(self):
+        too_small = SimpleUploadedFile("brief.pdf", b"tiny", content_type="application/pdf")
+        response = self.client.post(
+            reverse("campaigns:create"),
+            {"name": "Needs a file", "status": Campaign.Status.DRAFT, "documents": too_small},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "at least 10 KB")
+        self.assertFalse(Campaign.objects.filter(name="Needs a file").exists())
+
+        large_enough = SimpleUploadedFile("brief.pdf", b"x" * (10 * 1024), content_type="application/pdf")
+        saved = self.client.post(
+            reverse("campaigns:create"),
+            {"name": "With brief", "status": Campaign.Status.DRAFT, "documents": large_enough},
+        )
+        campaign = Campaign.objects.get(name="With brief")
+        self.assertRedirects(saved, reverse("campaigns:detail", args=[campaign.pk]))
+        document = CampaignDocument.objects.get(campaign=campaign)
+        self.assertGreaterEqual(document.size, 10 * 1024)
+        self.assertEqual(document.title, "brief.pdf")
 
     @override_settings(ANTHROPIC_API_KEY="")
     def test_search_returns_database_backed_india_gamer(self):

@@ -3,7 +3,7 @@
 {% block page_heading %}{{ title }}{% endblock %}
 {% block content %}
   <section class="panel stack-form">
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
       {% include "partials/form_fields.html" %}
       <button class="btn-accent" type="submit">Save campaign</button>

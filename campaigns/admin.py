@@ -3,6 +3,7 @@ from django.contrib import admin
 from campaigns.models import (
     Campaign,
     CampaignCreator,
+    CampaignDocument,
     Invitation,
     MessageTemplate,
     Offer,
@@ -15,12 +16,19 @@ class MembershipInline(admin.TabularInline):
     extra = 0
 
 
+class DocumentInline(admin.TabularInline):
+    model = CampaignDocument
+    extra = 0
+    fields = ("title", "file", "size", "uploaded_at")
+    readonly_fields = ("size", "uploaded_at")
+
+
 @admin.register(Campaign)
 class CampaignAdmin(admin.ModelAdmin):
     list_display = ("name", "owner", "status", "budget", "updated_at")
     list_filter = ("status",)
     search_fields = ("name", "objective")
-    inlines = [MembershipInline]
+    inlines = [DocumentInline, MembershipInline]
 
 
 @admin.register(RecommendationFeedback)

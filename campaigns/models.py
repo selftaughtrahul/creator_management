@@ -62,6 +62,27 @@ class Campaign(models.Model):
         return self.budget - spend
 
 
+class CampaignDocument(models.Model):
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name="documents")
+    title = models.CharField(max_length=180)
+    file = models.FileField(upload_to="campaign_documents/%Y/%m/")
+    size = models.PositiveIntegerField(default=0)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="campaign_documents",
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+
+    def __str__(self):
+        return self.title
+
+
 class CampaignCreator(models.Model):
     class State(models.TextChoices):
         SHORTLISTED = "shortlisted", "Shortlisted"

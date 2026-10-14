@@ -4,7 +4,7 @@
 {% block content %}
   <div class="page-head">
     <p>Create a brief, then discover and shortlist creators from stored profiles.</p>
-    <a class="btn-accent" href="{% url 'campaigns:create' %}">New campaign</a>
+    <button class="btn-accent" type="button" data-bs-toggle="offcanvas" data-bs-target="#campaignDrawer" aria-controls="campaignDrawer">New campaign</button>
   </div>
   <section class="panel">
     <table class="data">
@@ -25,4 +25,30 @@
     </table>
     {% include "partials/pager.html" %}
   </section>
+  <div class="offcanvas offcanvas-end campaign-drawer" tabindex="-1" id="campaignDrawer" aria-labelledby="campaignDrawerLabel">
+    <div class="offcanvas-header">
+      <h2 id="campaignDrawerLabel">New campaign</h2>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <form method="post" action="{% url 'campaigns:create' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% include "partials/form_fields.html" %}
+        <div class="actions">
+          <button class="btn-accent" type="submit">Save campaign</button>
+          <button class="btn-line" type="button" data-bs-dismiss="offcanvas">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% if open_form %}
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const drawer = document.getElementById("campaignDrawer");
+        if (drawer && window.bootstrap) {
+          window.bootstrap.Offcanvas.getOrCreateInstance(drawer).show();
+        }
+      });
+    </script>
+  {% endif %}
 {% endblock %}

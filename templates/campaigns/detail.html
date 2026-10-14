@@ -18,6 +18,18 @@
     <article class="stat"><span class="label">Followers</span><strong>{% if campaign.follower_min or campaign.follower_max %}{{ campaign.follower_min|default:"0"|intcomma }}–{{ campaign.follower_max|default:"∞" }}{% else %}Any{% endif %}</strong><em>Min engagement {% if campaign.min_engagement %}{{ campaign.min_engagement }}%{% else %}not set{% endif %}</em></article>
   </section>
   <section class="panel">
+    <h2>Documents</h2>
+    {% if campaign.documents.all %}
+      <ul>
+        {% for doc in campaign.documents.all %}
+          <li><a href="{{ doc.file.url }}">{{ doc.title }}</a> · {{ doc.size|filesizeformat }} · {{ doc.uploaded_at|date:"d M Y" }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">No documents were added with this campaign.</p>
+    {% endif %}
+  </section>
+  <section class="panel mt-3">
     <h2>Creators</h2>
     <form id="outreach-form" method="post" action="{% url 'campaigns:outreach' campaign.pk %}">
       {% csrf_token %}
