@@ -113,14 +113,19 @@ class RoleAccessTests(TestCase):
         self.assertEqual(self.client.get(reverse("campaigns:list")).status_code, 200)
         self.assertEqual(self.client.get(reverse("accounts:people")).status_code, 403)
 
-    def test_admin_can_manage_people_and_see_creators(self):
+    def test_only_superuser_can_open_people(self):
         admin = make_user("boss@example.com", "boss", role=StudioProfile.Role.ADMIN)
         make_creator("c@example.com", "creat")
         self.client.force_login(admin)
-        people = self.client.get(reverse("accounts:people"))
-        self.assertContains(people, "People")
+        self.assertEqual(self.client.get(reverse("accounts:people")).status_code, 403)
+        studio = self.client.get(reverse("campaigns:dashboard"))
+        self.assertNotContains(studio, "People")
         directory = self.client.get(reverse("creators:directory"))
         self.assertContains(directory, "creat")
+        admin.is_superuser = True
+        admin.save(update_fields=["is_superuser"])
+        people = self.client.get(reverse("accounts:people"))
+        self.assertContains(people, "People")
 
     def test_creator_accepts_invitation_and_notifies_staff(self):
         from campaigns.models import Campaign, Invitation

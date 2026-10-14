@@ -104,6 +104,17 @@ def admin_required(view):
     return wrapped
 
 
+def superuser_required(view):
+    @login_required
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        if not request.user.is_superuser:
+            raise PermissionDenied
+        return view(request, *args, **kwargs)
+
+    return wrapped
+
+
 def creator_required(view):
     @login_required
     @wraps(view)

@@ -30,6 +30,6 @@ def app_context(request):
         "can_templates": has_perm(user, "templates"),
         "can_outreach": has_perm(user, "outreach"),
         "can_creators": has_perm(user, "creators"),
-        "can_users": has_perm(user, "users"),
+        "can_users": bool(user and getattr(user, "is_authenticated", False) and user.is_superuser),
         "unread_notifications": unread,
     }

@@ -10,7 +10,7 @@ from allauth.account.forms import LoginForm
 
 from accounts.forms import PeopleForm, ProfileForm
 from accounts.models import DEFAULT_EMPLOYEE_PERMISSIONS, Notification, StudioProfile
-from accounts.permissions import admin_required, home_url, is_creator, is_staff_role
+from accounts.permissions import home_url, is_creator, is_staff_role, superuser_required
 
 
 def home(request):
@@ -98,7 +98,7 @@ def mark_all_notifications_read(request):
     return redirect("accounts:notifications")
 
 
-@admin_required
+@superuser_required
 def people(request):
     rows = StudioProfile.objects.select_related("user").order_by("role", "user__email")
     role = request.GET.get("role")
@@ -108,7 +108,7 @@ def people(request):
     return render(request, "accounts/people.html", {"page": page, "role": role})
 
 
-@admin_required
+@superuser_required
 def person_detail(request, pk):
     profile = get_object_or_404(StudioProfile.objects.select_related("user"), pk=pk)
     initial = {
