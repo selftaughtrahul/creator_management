@@ -6,6 +6,8 @@ app_name = "campaigns"
 
 urlpatterns = [
     path("studio/", views.dashboard, name="dashboard"),
+    path("studio/sample/load/", views.load_sample_data, name="load_sample"),
+    path("studio/sample/delete/", views.delete_sample_data, name="delete_sample"),
     path("studio/campaigns/", views.campaign_list, name="list"),
     path("studio/campaigns/new/", views.campaign_create, name="create"),
     path("studio/campaigns/<int:pk>/", views.campaign_detail, name="detail"),

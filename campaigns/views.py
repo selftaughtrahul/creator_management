@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from accounts.notify import notify_creator_offer
-from accounts.permissions import permission_required
+from accounts.permissions import permission_required, superuser_required
 from campaigns.dashboard import studio_dashboard
 from campaigns.export import shortlist_csv
 from campaigns.forms import (
@@ -28,6 +28,7 @@ from campaigns.models import (
     RecommendationFeedback,
 )
 from campaigns.outreach import record_outcome, send_invitation
+from campaigns.sample_data import delete_studio_sample, load_studio_sample
 from campaigns.search import search_creators
 from creators.jobs import enqueue_job
 from creators.metrics import creator_metrics
@@ -39,6 +40,25 @@ from networks.models import SocialAccount
 @permission_required("studio_dashboard")
 def dashboard(request):
     return render(request, "campaigns/dashboard.html", studio_dashboard(request))
+
+
+@superuser_required
+@require_POST
+def load_sample_data(request):
+    loaded = load_studio_sample(request.user)
+    messages.success(
+        request,
+        f"Sample data loaded: {loaded['creators']} creators, {loaded['campaigns']} campaigns, and sample metrics on every network.",
+    )
+    return redirect("campaigns:dashboard")
+
+
+@superuser_required
+@require_POST
+def delete_sample_data(request):
+    delete_studio_sample()
+    messages.success(request, "Sample creators, metrics, and the sample campaign were deleted.")
+    return redirect("campaigns:dashboard")
 
 
 def _campaign_list(request, form=None, open_form=False):

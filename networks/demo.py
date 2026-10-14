@@ -139,6 +139,10 @@ POSTS = {
         ("grades", "Carousel: three color grades", "carousel", 9, 19840, 1420, 90, 260, 36000),
         ("process", "A quiet note on process", "image", 6, 12400, 980, 40, 120, 25000),
         ("thursday", "Behind the shoot, Thursday", "image", 3, 9800, 760, 28, 90, 18400),
+        ("palette", "Palette test before the shoot", "image", 21, 15600, 1100, 54, 140, 27000),
+        ("client-cut", "Client cut, first pass", "reel", 24, 44800, 3200, 160, 390, 69000),
+        ("night", "Night setup in the studio", "image", 27, 8700, 640, 30, 80, 15000),
+        ("notes", "Shot list for next week", "carousel", 28, 13200, 900, 48, 110, 22000),
     ],
     "facebook": [
         ("workshop", "Workshop dates for November", "post", 16, 18400, 960, 140, 420, 42000),
@@ -147,6 +151,10 @@ POSTS = {
         ("props", "New props on the shelf", "image", 7, 6420, 410, 22, 80, 14000),
         ("question", "What should we film next?", "post", 4, 12100, 380, 210, 90, 26000),
         ("hours", "Weekend studio hours", "post", 2, 4300, 190, 18, 40, 9000),
+        ("menu", "New menu photos are in", "post", 18, 7200, 310, 40, 90, 16000),
+        ("queue", "What is in the edit queue", "post", 21, 5100, 240, 28, 60, 12000),
+        ("thanks", "Thank you for the comments", "post", 24, 3900, 180, 22, 40, 8000),
+        ("poll", "Which cover should we use", "post", 27, 9100, 420, 130, 70, 18000),
     ],
     "youtube": [
         ("plan-month", "How we plan a month of content", "video", 20, 186400, 9200, 640, 410, 0),
@@ -155,6 +163,10 @@ POSTS = {
         ("short-light", "Short: one light, three looks", "short", 8, 240500, 14200, 310, 890, 0),
         ("fifty", "What we learned from 50 posts", "video", 5, 76400, 3600, 280, 140, 0),
         ("thumbs", "Thumbnail test, side by side", "video", 2, 41200, 1980, 150, 70, 0),
+        ("hook", "The first five seconds", "short", 22, 98000, 6100, 210, 340, 0),
+        ("audio", "Cleaning noisy audio", "video", 25, 54000, 2400, 160, 90, 0),
+        ("broll", "B-roll we keep reusing", "video", 27, 36000, 1700, 120, 60, 0),
+        ("titles", "Title cards that stay readable", "short", 29, 47000, 2800, 140, 110, 0),
     ],
     "twitter": [
         ("hiring", "We are hiring a junior editor", "post", 19, 22400, 860, 74, 210, 31000),
@@ -163,6 +175,10 @@ POSTS = {
         ("case", "Case study: a bakery's new film", "post", 8, 14220, 980, 88, 260, 21000),
         ("team", "Thursday in the studio", "post", 5, 6400, 420, 22, 60, 11000),
         ("asks", "The first question clients ask", "post", 1, 11200, 760, 130, 180, 19000),
+        ("deadline", "How we set a realistic deadline", "post", 22, 8400, 390, 44, 90, 14000),
+        ("refs", "Reference films from this month", "post", 24, 7600, 510, 36, 70, 13000),
+        ("brief", "A brief that is one page", "post", 26, 6900, 280, 30, 50, 11000),
+        ("ship", "What shipped from the studio", "post", 28, 9100, 470, 52, 80, 15000),
     ],
 }
 

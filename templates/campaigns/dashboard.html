@@ -3,6 +3,18 @@
 {% block title %}Studio · Awisee{% endblock %}
 {% block page_heading %}Campaign studio{% endblock %}
 {% block content %}
+  {% if user.is_superuser %}
+    <div class="actions sample-actions">
+      <form method="post" action="{% url 'campaigns:load_sample' %}">
+        {% csrf_token %}
+        <button class="btn-accent" type="submit">Load sample data</button>
+      </form>
+      <form method="post" action="{% url 'campaigns:delete_sample' %}">
+        {% csrf_token %}
+        <button class="btn-line" type="submit">Delete sample data</button>
+      </form>
+    </div>
+  {% endif %}
   <form class="filter-bar" method="get">
     <div class="field"><label>From</label><input type="date" name="from" value="{{ request.GET.from }}"></div>
     <div class="field"><label>To</label><input type="date" name="to" value="{{ request.GET.to }}"></div>

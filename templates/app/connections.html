@@ -41,7 +41,7 @@
           {% elif card.ready and card.account %}
             <a class="btn-line" href="{% url 'networks:start' card.key %}">Reconnect</a>
           {% endif %}
-          {% if not card.account %}
+          {% if user.is_superuser and not card.account %}
             <form method="post" action="{% url 'networks:sample' card.key %}">
               {% csrf_token %}
               <button class="btn-line" type="submit">Load sample data</button>

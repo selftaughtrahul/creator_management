@@ -198,3 +198,36 @@ class CampaignAndSearchTests(TestCase):
         self.assertEqual(response.context["kpis"]["campaigns_total"], Campaign.objects.count())
         self.assertEqual(response.context["kpis"]["campaigns_active"], 1)
         self.assertIsNone(response.context["kpis"]["acceptance_rate"])
+        self.assertNotContains(response, "Load sample data")
+
+
+class StudioSampleDataTests(TestCase):
+    def test_only_superuser_can_load_and_delete_sample_studio_data(self):
+        from networks.models import SocialAccount
+
+        admin = make_user("boss-sample@example.com", "bosssample", role=StudioProfile.Role.ADMIN)
+        self.client.force_login(admin)
+        denied = self.client.post(reverse("campaigns:load_sample"))
+        self.assertEqual(denied.status_code, 403)
+        self.assertFalse(Campaign.objects.filter(name="Sample campaign 01").exists())
+
+        admin.is_superuser = True
+        admin.save(update_fields=["is_superuser"])
+        studio = self.client.get(reverse("campaigns:dashboard"))
+        self.assertContains(studio, "Load sample data")
+        self.assertContains(studio, "Delete sample data")
+        loaded = self.client.post(reverse("campaigns:load_sample"))
+        self.assertRedirects(loaded, reverse("campaigns:dashboard"))
+        self.assertGreaterEqual(SocialAccount.objects.filter(is_sample=True).count(), 10)
+        self.assertGreaterEqual(Campaign.objects.filter(name__startswith="Sample campaign").count(), 10)
+        self.assertGreaterEqual(
+            SocialAccount.objects.filter(is_sample=True).first().contents.count(),
+            10,
+        )
+        self.assertContains(self.client.get(reverse("creators:directory")), "Mira Kapoor")
+
+        deleted = self.client.post(reverse("campaigns:delete_sample"))
+        self.assertRedirects(deleted, reverse("campaigns:dashboard"))
+        self.assertFalse(SocialAccount.objects.filter(is_sample=True).exists())
+        self.assertFalse(Campaign.objects.filter(name__startswith="Sample campaign").exists())
+        self.assertNotContains(self.client.get(reverse("creators:directory")), "Mira Kapoor")
