@@ -3,36 +3,10 @@
 {% block title %}Studio · Awisee{% endblock %}
 {% block page_heading %}Campaign studio{% endblock %}
 {% block content %}
-  {% if user.is_superuser %}
-    <div class="actions sample-actions">
-      <form method="post" action="{% url 'campaigns:load_sample' %}">
-        {% csrf_token %}
-        <button class="btn-accent" type="submit">Load sample data</button>
-      </form>
-      <form method="post" action="{% url 'campaigns:delete_sample' %}">
-        {% csrf_token %}
-        <button class="btn-line" type="submit">Delete sample data</button>
-      </form>
-    </div>
-  {% endif %}
-  <form class="filter-bar" method="get">
-    <div class="field"><label>From</label><input type="date" name="from" value="{{ request.GET.from }}"></div>
-    <div class="field"><label>To</label><input type="date" name="to" value="{{ request.GET.to }}"></div>
-    <div class="field">
-      <label>Campaign</label>
-      <select name="campaign">
-        <option value="">All</option>
-        {% for item in all_campaigns %}
-          <option value="{{ item.pk }}" {% if campaign_filter == item.pk|stringformat:"s" %}selected{% endif %}>{{ item.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <button class="btn-line" type="submit">Filter</button>
-  </form>
   {% if missing %}
     <div class="notice">{% for note in missing %}{{ note }} {% endfor %}</div>
   {% endif %}
-  <section class="stat-grid">
+  <section class="stat-grid compact">
     <article class="stat"><span class="label">Campaigns</span><strong>{{ kpis.campaigns_total|intcomma }}</strong><em>{{ kpis.campaigns_active }} active · {{ kpis.campaigns_completed }} completed</em></article>
     <article class="stat"><span class="label">Creators</span><strong>{{ kpis.creators_discovered|intcomma }}</strong><em>{{ kpis.creators_shortlisted }} shortlisted · {{ kpis.creators_assigned }} assigned</em></article>
     <article class="stat"><span class="label">Invitations</span><strong>{{ kpis.invitations_sent|intcomma }}</strong><em>{{ kpis.invitations_responses }} recorded responses · {{ kpis.due_followups }} follow-ups due</em></article>
@@ -42,13 +16,13 @@
       <em>{% if kpis.cost_sum is not None %}Recorded costs {{ kpis.cost_sum|intcomma }}{% else %}No recorded costs{% endif %} · {{ kpis.unrecorded_costs }} unrecorded</em>
     </article>
   </section>
-  <section class="stat-grid">
+  <section class="stat-grid compact">
     <article class="stat"><span class="label">Admins</span><strong>{{ kpis.admins|intcomma }}</strong><em>{{ definitions.admins }}</em></article>
     <article class="stat"><span class="label">Employees</span><strong>{{ kpis.employees|intcomma }}</strong><em>{{ definitions.employees }}</em></article>
     <article class="stat"><span class="label">Creator accounts</span><strong>{{ kpis.creators_total|intcomma }}</strong><em>{{ definitions.creators_total }}</em></article>
     <article class="stat"><span class="label">Connected accounts</span><strong>{{ kpis.social_accounts|intcomma }}</strong><em>{{ definitions.social_accounts }}</em></article>
   </section>
-  <section class="stat-grid">
+  <section class="stat-grid compact">
     <article class="stat"><span class="label">Feedback yes-rate</span><strong>{% if kpis.acceptance_rate is not None %}{{ kpis.acceptance_rate }}%{% else %}—{% endif %}</strong><em>{{ kpis.feedback_total }} feedback row{{ kpis.feedback_total|pluralize }}</em></article>
     <article class="stat"><span class="label">Classification eval</span><strong>{% if evaluation.ready %}{{ evaluation.f1 }}{% else %}—{% endif %}</strong><em>{{ evaluation.message }}</em></article>
     <article class="stat"><span class="label">Job backlog</span><strong>{{ jobs.open|intcomma }}</strong><em>{{ jobs.pending }} pending · {{ jobs.blocked }} blocked · {{ jobs.failed }} failed</em></article>

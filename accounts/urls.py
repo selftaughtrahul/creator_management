@@ -11,6 +11,7 @@ urlpatterns = [
     path("employees/join/", views.employee_join, name="employee_join"),
     path("staff/login/", views.staff_login, name="staff_login"),
     path("profile/", views.profile, name="profile"),
+    path("profile/theme/", views.set_theme, name="theme"),
     path("notifications/", views.notifications, name="notifications"),
     path("notifications/read-all/", views.mark_all_notifications_read, name="notifications_read_all"),
     path("notifications/<int:pk>/read/", views.mark_notification_read, name="notification_read"),

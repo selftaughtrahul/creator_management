@@ -164,6 +164,20 @@ class RoleAccessTests(TestCase):
         self.assertEqual(self.client.get(reverse("analytics:dashboard")).status_code, 403)
         self.assertEqual(self.client.get(reverse("networks:connections")).status_code, 403)
 
+    def test_user_can_choose_a_premium_theme(self):
+        admin = make_user("theme@example.com", "themeadmin", role=StudioProfile.Role.ADMIN)
+        self.client.force_login(admin)
+        saved = self.client.post(reverse("accounts:theme"), {"theme": "jade"})
+        self.assertEqual(saved.status_code, 200)
+        admin.studio.refresh_from_db()
+        self.assertEqual(admin.studio.theme, "jade")
+        page = self.client.get(reverse("campaigns:dashboard"))
+        self.assertContains(page, 'data-theme="jade"')
+        self.assertContains(page, "Ivory")
+        self.assertContains(page, "Rouge")
+        rejected = self.client.post(reverse("accounts:theme"), {"theme": "neon"})
+        self.assertEqual(rejected.status_code, 400)
+
 
 class LegalPageTests(TestCase):
     def test_privacy_and_deletion_pages_are_public(self):

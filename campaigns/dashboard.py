@@ -74,15 +74,15 @@ def studio_dashboard(request):
         RecommendationFeedback.objects.filter(campaign__in=scoped)
         .values("user__email")
         .annotate(total=Count("id"))
-        .order_by("-total")[:8]
+        .order_by("-total")[:5]
     )
     offers = Offer.objects.filter(campaign__in=scoped)
     offer_counts = {key: 0 for key, _ in Offer.State.choices}
     for row in offers.values("state").annotate(total=Count("id")):
         offer_counts[row["state"]] = row["total"]
 
-    recent_campaigns = list(scoped.select_related("owner", "niche")[:12])
-    review_queue = Classification.objects.filter(needs_review=True).select_related("creator", "category")[:8]
+    recent_campaigns = list(scoped.select_related("owner", "niche")[:5])
+    review_queue = Classification.objects.filter(needs_review=True).select_related("creator", "category")[:5]
     recent_jobs = EnrichmentJob.objects.select_related("creator")[:8]
 
     charts = {

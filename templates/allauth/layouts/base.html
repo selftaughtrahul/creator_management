@@ -1,7 +1,14 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="{{ user_theme|default:'tide' }}">
 <head>
+  <script>
+    (function () {
+      var saved = localStorage.getItem("awisee-theme");
+      var allowed = ["tide", "ivory", "jade", "dusk", "rouge"];
+      if (allowed.indexOf(saved) !== -1) document.documentElement.setAttribute("data-theme", saved);
+    })();
+  </script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block head_title %}Awisee{% endblock %}</title>

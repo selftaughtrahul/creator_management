@@ -1,7 +1,14 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="{{ user_theme|default:'tide' }}">
 <head>
+  <script>
+    (function () {
+      var saved = localStorage.getItem("awisee-theme");
+      var allowed = ["tide", "ivory", "jade", "dusk", "rouge"];
+      if (allowed.indexOf(saved) !== -1) document.documentElement.setAttribute("data-theme", saved);
+    })();
+  </script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Awisee{% endblock %}</title>
@@ -22,6 +29,27 @@
         </button>
         <h1>{% block page_heading %}Studio{% endblock %}</h1>
         <div class="topbar-tools">
+          {% if user.is_superuser %}
+            <form method="post" action="{% url 'campaigns:load_sample' %}">
+              {% csrf_token %}
+              <button class="btn-accent" type="submit">Load sample data</button>
+            </form>
+            <form method="post" action="{% url 'campaigns:delete_sample' %}">
+              {% csrf_token %}
+              <button class="btn-line" type="submit">Delete sample data</button>
+            </form>
+          {% endif %}
+          <div class="theme-picker">
+            {% csrf_token %}
+            <button class="btn-line" type="button" id="themeToggle" aria-expanded="false" aria-controls="themeMenu">Theme</button>
+            <div class="theme-menu" id="themeMenu" hidden>
+              <button type="button" data-theme-choice="tide"><span class="theme-swatch swatch-tide"></span>Tide</button>
+              <button type="button" data-theme-choice="ivory"><span class="theme-swatch swatch-ivory"></span>Ivory</button>
+              <button type="button" data-theme-choice="jade"><span class="theme-swatch swatch-jade"></span>Jade</button>
+              <button type="button" data-theme-choice="dusk"><span class="theme-swatch swatch-dusk"></span>Dusk</button>
+              <button type="button" data-theme-choice="rouge"><span class="theme-swatch swatch-rouge"></span>Rouge</button>
+            </div>
+          </div>
           <a class="note-bell" href="{% url 'accounts:notifications' %}" aria-label="Notifications">
             <i class="bi bi-bell"></i>
             {% if unread_notifications %}<span class="note-count">{{ unread_notifications }}</span>{% endif %}
@@ -84,6 +112,42 @@
           if (title && trigger.dataset.drawerTitle) title.textContent = trigger.dataset.drawerTitle;
         });
       });
+      const themeToggle = document.getElementById("themeToggle");
+      const themeMenu = document.getElementById("themeMenu");
+      function markTheme() {
+        const current = document.documentElement.getAttribute("data-theme");
+        document.querySelectorAll("[data-theme-choice]").forEach(function (choice) {
+          choice.classList.toggle("is-selected", choice.getAttribute("data-theme-choice") === current);
+        });
+      }
+      function csrfToken() {
+        const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : "";
+      }
+      if (themeToggle && themeMenu) {
+        markTheme();
+        themeToggle.addEventListener("click", function () {
+          const open = themeMenu.hasAttribute("hidden");
+          if (open) themeMenu.removeAttribute("hidden");
+          else themeMenu.setAttribute("hidden", "");
+          themeToggle.setAttribute("aria-expanded", open ? "true" : "false");
+        });
+        themeMenu.querySelectorAll("[data-theme-choice]").forEach(function (choice) {
+          choice.addEventListener("click", function () {
+            const theme = choice.getAttribute("data-theme-choice");
+            document.documentElement.setAttribute("data-theme", theme);
+            localStorage.setItem("awisee-theme", theme);
+            markTheme();
+            themeMenu.setAttribute("hidden", "");
+            themeToggle.setAttribute("aria-expanded", "false");
+            fetch("{% url 'accounts:theme' %}", {
+              method: "POST",
+              headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken()},
+              body: JSON.stringify({theme: theme}),
+            });
+          });
+        });
+      }
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>

@@ -61,8 +61,16 @@ class StudioProfile(models.Model):
         on_delete=models.CASCADE,
         related_name="studio",
     )
+    class Theme(models.TextChoices):
+        TIDE = "tide", "Tide"
+        IVORY = "ivory", "Ivory"
+        JADE = "jade", "Jade"
+        DUSK = "dusk", "Dusk"
+        ROUGE = "rouge", "Rouge"
+
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.EMPLOYEE)
     permissions = models.JSONField(default=list, blank=True)
+    theme = models.CharField(max_length=20, choices=Theme.choices, default=Theme.TIDE)
 
     def __str__(self):
         return f"{self.user} · {self.get_role_display()}"
