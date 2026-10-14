@@ -1,0 +1,27 @@
+{% extends "app/base.html" %}
+{% load humanize %}
+{% block title %}Creator profile · Awisee{% endblock %}
+{% block page_heading %}Creator profile{% endblock %}
+{% block content %}
+  <div class="page-head">
+    <p>Status: {{ profile.get_status_display }}. Metrics come from accounts you connect, not from guesses.</p>
+    <a class="btn-line" href="{% url 'creators:documents' %}">Documents</a>
+  </div>
+  <section class="stat-grid">
+    <article class="stat"><span class="label">Followers</span><strong>{% if metrics.followers.value is not None %}{{ metrics.followers.value|intcomma }}{% else %}—{% endif %}</strong><em>{{ metrics.followers.source }}</em></article>
+    <article class="stat"><span class="label">Engagement</span><strong>{% if metrics.engagement.value is not None %}{{ metrics.engagement.value }}%{% else %}—{% endif %}</strong><em>{{ metrics.engagement.source }}</em></article>
+    <article class="stat"><span class="label">Location</span><strong>{{ metrics.location.value|default:"—" }}</strong><em>{{ metrics.location.source }}</em></article>
+    <article class="stat"><span class="label">Niche</span><strong>{{ metrics.niche.value|default:"—" }}</strong><em>{{ metrics.niche.source }}</em></article>
+  </section>
+  {% if quality.missing %}
+    <div class="notice">Missing or stale: {{ quality.missing|join:", " }}.</div>
+  {% endif %}
+  <section class="panel stack-form">
+    <h2>Profile and permissions</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% include "partials/form_fields.html" %}
+      <button class="btn-accent" type="submit">Save</button>
+    </form>
+  </section>
+{% endblock %}

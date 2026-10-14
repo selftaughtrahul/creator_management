@@ -1,0 +1,120 @@
+{% extends "app/base.html" %}
+{% load humanize %}
+{% block title %}{{ campaign.name }} · Awisee{% endblock %}
+{% block page_heading %}{{ campaign.name }}{% endblock %}
+{% block content %}
+  <div class="page-head">
+    <p>{{ campaign.get_status_display }} · {{ campaign.location|default:"No location" }} · {{ campaign.niche.name|default:"No niche" }}</p>
+    <div class="actions">
+      <a class="btn-line" href="{% url 'campaigns:edit' campaign.pk %}">Edit</a>
+      <a class="btn-accent" href="{% url 'campaigns:campaign_discover' campaign.pk %}?from_campaign=1">Discover creators</a>
+      <a class="btn-line" href="{% url 'campaigns:export' campaign.pk %}">Export CSV</a>
+    </div>
+  </div>
+  <section class="stat-grid">
+    <article class="stat"><span class="label">Budget</span><strong>{% if campaign.budget is not None %}{{ campaign.budget|intcomma }}{% else %}Not set{% endif %}</strong><em>Campaign.budget</em></article>
+    <article class="stat"><span class="label">Recorded spend</span><strong>{% if spend is not None %}{{ spend|intcomma }}{% else %}Unrecorded{% endif %}</strong><em>{{ unrecorded }} membership{{ unrecorded|pluralize }} without a cost</em></article>
+    <article class="stat"><span class="label">Remaining</span><strong>{% if remaining is not None %}{{ remaining|intcomma }}{% else %}—{% endif %}</strong><em>Budget minus recorded costs only</em></article>
+    <article class="stat"><span class="label">Followers</span><strong>{% if campaign.follower_min or campaign.follower_max %}{{ campaign.follower_min|default:"0"|intcomma }}–{{ campaign.follower_max|default:"∞" }}{% else %}Any{% endif %}</strong><em>Min engagement {% if campaign.min_engagement %}{{ campaign.min_engagement }}%{% else %}not set{% endif %}</em></article>
+  </section>
+  <section class="panel">
+    <h2>Creators</h2>
+    <form id="outreach-form" method="post" action="{% url 'campaigns:outreach' campaign.pk %}">
+      {% csrf_token %}
+      <div class="filter-bar">
+        <div class="field">
+          <label>Template</label>
+          {{ outreach_form.template }}
+        </div>
+        <div class="field">
+          <label>Follow up</label>
+          {{ outreach_form.follow_up_at }}
+        </div>
+        <input type="hidden" name="creator_ids" id="creatorIds" value="">
+        <button class="btn-accent" type="submit">Prepare invitations</button>
+      </div>
+    </form>
+      <table class="data">
+        <thead><tr><th></th><th>Creator</th><th>State</th><th>Followers</th><th>Engagement</th><th>Cost</th><th></th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td><input form="outreach-form" type="checkbox" class="creator-box" value="{{ row.membership.creator_id }}"></td>
+              <td><a href="{% url 'creators:detail' row.membership.creator_id %}">{{ row.membership.creator }}</a></td>
+              <td>{{ row.membership.get_state_display }}</td>
+              <td>{% if row.metrics.followers.value is not None %}{{ row.metrics.followers.value|intcomma }}{% else %}unavailable{% endif %}<div class="badge-source">{{ row.metrics.followers.source }}</div></td>
+              <td>{% if row.metrics.engagement.value is not None %}{{ row.metrics.engagement.value }}%{% else %}unavailable{% endif %}<div class="badge-source">{{ row.metrics.engagement.source }}</div></td>
+              <td>
+                {% if row.membership.recorded_cost is not None %}{{ row.membership.recorded_cost }}{% else %}Unrecorded{% endif %}
+                <form method="post" action="{% url 'campaigns:cost' campaign.pk row.membership.creator_id %}">{% csrf_token %}<input type="number" step="0.01" name="recorded_cost" placeholder="Cost"><button class="btn-line" type="submit">Save</button></form>
+              </td>
+              <td>
+                {% if row.membership.state != "assigned" %}
+                  <form method="post" action="{% url 'campaigns:assign' campaign.pk row.membership.creator_id %}">{% csrf_token %}<button class="btn-line" type="submit">Assign</button></form>
+                {% endif %}
+                <form method="post" action="{% url 'campaigns:offer' campaign.pk row.membership.creator_id %}">
+                  {% csrf_token %}
+                  <input type="number" step="0.01" name="amount" placeholder="Offer">
+                  <input type="text" name="currency" value="INR">
+                  <button class="btn-line" type="submit">Propose</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7">Shortlist creators from discovery.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+  </section>
+  <section class="two-col">
+    <article class="panel">
+      <h2>Invitations</h2>
+      {% for invite in invitations %}
+        <p>
+          {{ invite.creator }} · {{ invite.get_status_display }} · {{ invite.to_email }}
+          {% if invite.follow_up_at %} · follow-up {{ invite.follow_up_at }}{% endif %}
+          {% if invite.last_error %}<span class="error-text">{{ invite.last_error }}</span>{% endif %}
+        </p>
+        <form method="post" action="{% url 'campaigns:invitation_outcome' invite.pk %}" class="actions">
+          {% csrf_token %}
+          <select name="status">
+            <option value="responded">Responded</option>
+            <option value="accepted">Accepted</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <input type="text" name="note" placeholder="Note">
+          <button class="btn-line" type="submit">Record</button>
+        </form>
+      {% empty %}
+        <p class="muted">None sent.</p>
+      {% endfor %}
+    </article>
+    <article class="panel">
+      <h2>Offers</h2>
+      {% for offer in offers %}
+        <p>{{ offer.creator }} · {{ offer.amount }} {{ offer.currency }} · {{ offer.get_state_display }}</p>
+        {% if offer.state != "accepted" and offer.state != "declined" %}
+          <form method="post" action="{% url 'campaigns:decide_offer' offer.pk %}" class="actions">
+            {% csrf_token %}
+            <button class="btn-accent" name="action" value="accept">Accept</button>
+            <button class="btn-line" name="action" value="decline">Decline</button>
+          </form>
+        {% endif %}
+      {% empty %}
+        <p class="muted">None yet.</p>
+      {% endfor %}
+      <h3 class="mt-3">Feedback</h3>
+      {% for row in feedback %}
+        <p>{{ row.user.email }} · {{ row.creator }} · {{ row.get_decision_display }} · {{ row.comment }}</p>
+      {% empty %}
+        <p class="muted">No reviewer decisions yet.</p>
+      {% endfor %}
+    </article>
+  </section>
+  <script>
+    const boxes = document.querySelectorAll(".creator-box");
+    const hidden = document.getElementById("creatorIds");
+    const sync = () => { hidden.value = [...boxes].filter(box => box.checked).map(box => box.value).join(","); };
+    boxes.forEach(box => box.addEventListener("change", sync));
+  </script>
+{% endblock %}

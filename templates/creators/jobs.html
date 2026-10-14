@@ -1,0 +1,44 @@
+{% extends "app/base.html" %}
+{% block title %}Jobs · Awisee{% endblock %}
+{% block page_heading %}Enrichment queue{% endblock %}
+{% block content %}
+  <div class="page-head">
+    <p>Pending {{ counts.pending }} · running {{ counts.running }} · succeeded {{ counts.succeeded }} · failed {{ counts.failed }} · blocked {{ counts.blocked }}.</p>
+    <form method="post" action="{% url 'creators:run_jobs' %}">
+      {% csrf_token %}
+      <button class="btn-accent" type="submit">Process pending batch</button>
+    </form>
+  </div>
+  <div class="filter-bar">
+    {% for key, label in counts.items %}
+      {% if key != "open" %}
+        <a class="btn-line" href="?status={{ key }}">{{ key }}</a>
+      {% endif %}
+    {% endfor %}
+    <a class="btn-line" href="{% url 'creators:jobs' %}">All</a>
+  </div>
+  <section class="panel">
+    <table class="data">
+      <thead><tr><th>Creator</th><th>Platform</th><th>Status</th><th>Attempts</th><th>Error</th><th></th></tr></thead>
+      <tbody>
+        {% for job in page %}
+          <tr>
+            <td><a href="{% url 'creators:detail' job.creator_id %}">{{ job.creator }}</a></td>
+            <td>{{ job.platform }}</td>
+            <td>{{ job.get_status_display }}</td>
+            <td>{{ job.attempts }}</td>
+            <td>{{ job.last_error|truncatechars:80 }}</td>
+            <td>
+              {% if job.status == "failed" or job.status == "blocked" %}
+                <form method="post" action="{% url 'creators:retry_job' job.pk %}">{% csrf_token %}<button class="btn-line" type="submit">Retry</button></form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">No jobs.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% include "partials/pager.html" %}
+  </section>
+{% endblock %}

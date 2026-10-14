@@ -34,6 +34,8 @@ INSTALLED_APPS = [
     "accounts",
     "networks",
     "analytics",
+    "creators",
+    "campaigns",
 ]
 
 MIDDLEWARE = [
@@ -89,6 +91,8 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SITE_ID = 1
@@ -133,6 +137,10 @@ INSTAGRAM_REDIRECT_URI = os.environ.get(
 )
 TWITTER_CLIENT_ID = os.environ.get("TWITTER_CLIENT_ID", "")
 TWITTER_CLIENT_SECRET = os.environ.get("TWITTER_CLIENT_SECRET", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5")
+JOB_BATCH_SIZE = int(os.environ.get("JOB_BATCH_SIZE", "10") or "10")
+JOB_PLATFORM_DELAY_SECONDS = float(os.environ.get("JOB_PLATFORM_DELAY_SECONDS", "1") or "0")
 
 SOCIALACCOUNT_PROVIDERS = {}
 if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
@@ -161,3 +169,18 @@ elif DEBUG:
     EMAIL_BACKEND = "accounts.mail.DatabaseEmailBackend"
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "studio": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "studio"},
+    },
+    "loggers": {
+        "creators": {"handlers": ["console"], "level": "INFO"},
+        "campaigns": {"handlers": ["console"], "level": "INFO"},
+    },
+}

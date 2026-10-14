@@ -1,0 +1,26 @@
+{% extends "app/base.html" %}
+{% block title %}My campaigns · Awisee{% endblock %}
+{% block page_heading %}My campaigns{% endblock %}
+{% block content %}
+  {% if not memberships %}
+    <section class="panel empty">
+      <h2>No assigned campaigns</h2>
+      <p>When a team adds you to a campaign, it will show here.</p>
+    </section>
+  {% else %}
+    <section class="panel">
+      <table class="data">
+        <thead><tr><th>Campaign</th><th>State</th><th>Updated</th></tr></thead>
+        <tbody>
+          {% for row in memberships %}
+            <tr>
+              <td><a href="{% url 'creators:my_campaign' row.campaign_id %}">{{ row.campaign.name }}</a></td>
+              <td>{{ row.get_state_display }}</td>
+              <td>{{ row.updated_at|date:"d M Y" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  {% endif %}
+{% endblock %}

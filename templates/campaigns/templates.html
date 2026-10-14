@@ -1,0 +1,20 @@
+{% extends "app/base.html" %}
+{% block title %}Templates · Awisee{% endblock %}
+{% block page_heading %}Invitation templates{% endblock %}
+{% block content %}
+  <section class="panel stack-form">
+    <form method="post">
+      {% csrf_token %}
+      {% include "partials/form_fields.html" %}
+      <button class="btn-accent" type="submit">Save template</button>
+    </form>
+  </section>
+  <section class="panel mt-3">
+    <h2>Saved</h2>
+    {% for item in templates %}
+      <p><strong>{{ item.name }}</strong> · {{ item.subject }}</p>
+    {% empty %}
+      <p class="muted">None yet.</p>
+    {% endfor %}
+  </section>
+{% endblock %}

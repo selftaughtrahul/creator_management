@@ -1,0 +1,25 @@
+{% extends "app/base.html" %}
+{% block title %}Classifications · Awisee{% endblock %}
+{% block page_heading %}Classification review{% endblock %}
+{% block content %}
+  <div class="notice">{{ evaluation.message }}{% if evaluation.ready %} Precision {{ evaluation.precision }}, recall {{ evaluation.recall }}, F1 {{ evaluation.f1 }} on {{ evaluation.labeled }} labeled example{{ evaluation.labeled|pluralize }}.{% endif %}</div>
+  <section class="panel">
+    <table class="data">
+      <thead><tr><th>Creator</th><th>Category</th><th>Method</th><th>Confidence</th><th></th></tr></thead>
+      <tbody>
+        {% for row in page %}
+          <tr>
+            <td><a href="{% url 'creators:detail' row.creator_id %}">{{ row.creator }}</a></td>
+            <td>{{ row.category.name|default:"unclassified" }}</td>
+            <td>{{ row.get_method_display }} · {{ row.get_provenance_display }}</td>
+            <td>{{ row.confidence|default:"—" }}</td>
+            <td><a class="btn-line" href="{% url 'creators:detail' row.creator_id %}">Review</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">Nothing marked for review.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% include "partials/pager.html" %}
+  </section>
+{% endblock %}

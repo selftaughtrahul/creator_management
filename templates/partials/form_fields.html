@@ -1,0 +1,14 @@
+{% for field in form %}
+  <div class="field">
+    {% if field.field.widget.input_type == "checkbox" or field.name == "niches" or field.name == "platforms" or field.name == "decision" %}
+      <label>{{ field.label }}</label>
+      {{ field }}
+    {% else %}
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+    {% endif %}
+    {% if field.help_text %}<div class="help text-muted">{{ field.help_text }}</div>{% endif %}
+    {% for error in field.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+  </div>
+{% endfor %}
+{% for error in form.non_field_errors %}<div class="field-error">{{ error }}</div>{% endfor %}

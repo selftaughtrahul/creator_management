@@ -1,0 +1,22 @@
+{% extends "app/base.html" %}
+{% block title %}Confirm invitations · Awisee{% endblock %}
+{% block page_heading %}Confirm send{% endblock %}
+{% block content %}
+  <div class="notice">Messages are not marked delivered unless a real SMTP backend accepts them. The local mailbox only stores a copy.</div>
+  {% for invite in invitations %}
+    <section class="panel mt-3">
+      <h2>{{ invite.creator }} → {{ invite.to_email }}</h2>
+      <p><strong>{{ invite.subject }}</strong></p>
+      <p class="caption">{{ invite.body }}</p>
+    </section>
+  {% empty %}
+    <p>No drafts to confirm.</p>
+  {% endfor %}
+  {% if invitations %}
+    <form method="post" class="actions mt-3">
+      {% csrf_token %}
+      <button class="btn-accent" name="confirm" value="1" type="submit">Send {{ invitations|length }} invitation{{ invitations|length|pluralize }}</button>
+      <button class="btn-line" type="submit">Cancel</button>
+    </form>
+  {% endif %}
+{% endblock %}

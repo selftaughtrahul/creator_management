@@ -1,0 +1,29 @@
+{% extends "app/base.html" %}
+{% block title %}{{ campaign.name }} · Awisee{% endblock %}
+{% block page_heading %}{{ campaign.name }}{% endblock %}
+{% block content %}
+  <p class="muted">{{ campaign.objective }}</p>
+  <p>Your status on this campaign: {{ membership.get_state_display }}</p>
+  <section class="panel mt-3">
+    <h2>Offers</h2>
+    <p class="muted">You can counter. A team member still has to accept commercial terms.</p>
+    {% for offer in offers %}
+      <p><strong>{{ offer.amount }} {{ offer.currency }}</strong> · {{ offer.get_state_display }} · {{ offer.note }}</p>
+    {% empty %}
+      <p class="muted">No offers yet.</p>
+    {% endfor %}
+    <form method="post" class="stack-form mt-3">
+      {% csrf_token %}
+      {% include "partials/form_fields.html" %}
+      <button class="btn-accent" type="submit">Send counteroffer</button>
+    </form>
+  </section>
+  <section class="panel mt-3">
+    <h2>Invitations</h2>
+    {% for invite in invitations %}
+      <p>{{ invite.subject }} · {{ invite.get_status_display }} · {{ invite.created_at|date:"d M Y H:i" }}</p>
+    {% empty %}
+      <p class="muted">None yet.</p>
+    {% endfor %}
+  </section>
+{% endblock %}

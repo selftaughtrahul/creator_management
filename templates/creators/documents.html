@@ -1,0 +1,25 @@
+{% extends "app/base.html" %}
+{% block title %}Documents · Awisee{% endblock %}
+{% block page_heading %}Documents{% endblock %}
+{% block content %}
+  <section class="panel stack-form">
+    <h2>Upload</h2>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {% include "partials/form_fields.html" %}
+      <button class="btn-accent" type="submit">Upload</button>
+    </form>
+  </section>
+  <section class="panel mt-3">
+    <h2>Your files</h2>
+    {% if documents %}
+      <ul>
+        {% for doc in documents %}
+          <li><a href="{{ doc.file.url }}">{{ doc.title }}</a> · {{ doc.uploaded_at|date:"d M Y" }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">None uploaded yet.</p>
+    {% endif %}
+  </section>
+{% endblock %}

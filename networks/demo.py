@@ -246,9 +246,12 @@ def tick_sample(account):
         return connect_sample(account.user, account.platform)
     ensure_sample_demographics(account)
     last = account.snapshots.order_by("-captured_at").first()
+    captured_at = timezone.now()
+    if last.captured_at >= captured_at:
+        captured_at = last.captured_at + timedelta(seconds=1)
     created = MetricSnapshot.objects.create(
         account=account,
-        captured_at=timezone.now(),
+        captured_at=captured_at,
         followers=last.followers + max(1, last.followers // 400),
         following=last.following,
         content_count=last.content_count,

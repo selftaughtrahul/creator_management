@@ -1,0 +1,12 @@
+{% extends "app/base.html" %}
+{% block title %}{{ title }} · Awisee{% endblock %}
+{% block page_heading %}{{ title }}{% endblock %}
+{% block content %}
+  <section class="panel stack-form">
+    <form method="post">
+      {% csrf_token %}
+      {% include "partials/form_fields.html" %}
+      <button class="btn-accent" type="submit">Save campaign</button>
+    </form>
+  </section>
+{% endblock %}

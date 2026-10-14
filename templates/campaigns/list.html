@@ -1,0 +1,28 @@
+{% extends "app/base.html" %}
+{% block title %}Campaigns · Awisee{% endblock %}
+{% block page_heading %}Campaigns{% endblock %}
+{% block content %}
+  <div class="page-head">
+    <p>Create a brief, then discover and shortlist creators from stored profiles.</p>
+    <a class="btn-accent" href="{% url 'campaigns:create' %}">New campaign</a>
+  </div>
+  <section class="panel">
+    <table class="data">
+      <thead><tr><th>Name</th><th>Status</th><th>Niche</th><th>Budget</th><th>Updated</th></tr></thead>
+      <tbody>
+        {% for campaign in page %}
+          <tr>
+            <td><a href="{% url 'campaigns:detail' campaign.pk %}">{{ campaign.name }}</a></td>
+            <td>{{ campaign.get_status_display }}</td>
+            <td>{{ campaign.niche.name|default:"—" }}</td>
+            <td>{% if campaign.budget is not None %}{{ campaign.budget }}{% else %}Not set{% endif %}</td>
+            <td>{{ campaign.updated_at|date:"d M Y" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">No campaigns yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% include "partials/pager.html" %}
+  </section>
+{% endblock %}

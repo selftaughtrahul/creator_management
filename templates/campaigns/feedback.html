@@ -1,0 +1,38 @@
+{% extends "app/base.html" %}
+{% block title %}Feedback · Awisee{% endblock %}
+{% block page_heading %}Recommendation feedback{% endblock %}
+{% block content %}
+  <p class="muted">One decision per reviewer, campaign, and creator. Updates overwrite the previous row. This dataset is not used to retrain production models.</p>
+  <form class="filter-bar" method="get">
+    <div class="field">
+      <label>Campaign</label>
+      <select name="campaign">
+        <option value="">All</option>
+        {% for item in campaigns %}
+          <option value="{{ item.pk }}" {% if campaign_id == item.pk|stringformat:"s" %}selected{% endif %}>{{ item.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn-line" type="submit">Filter</button>
+  </form>
+  <section class="panel">
+    <table class="data">
+      <thead><tr><th>When</th><th>Reviewer</th><th>Campaign</th><th>Creator</th><th>Decision</th><th>Comment</th></tr></thead>
+      <tbody>
+        {% for row in page %}
+          <tr>
+            <td>{{ row.updated_at|date:"d M Y H:i" }}</td>
+            <td>{{ row.user.email }}</td>
+            <td><a href="{% url 'campaigns:detail' row.campaign_id %}">{{ row.campaign }}</a></td>
+            <td><a href="{% url 'creators:detail' row.creator_id %}">{{ row.creator }}</a></td>
+            <td>{{ row.get_decision_display }}</td>
+            <td>{{ row.comment }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">No feedback yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% include "partials/pager.html" %}
+  </section>
+{% endblock %}

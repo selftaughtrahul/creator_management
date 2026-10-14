@@ -1,0 +1,93 @@
+{% extends "app/base.html" %}
+{% load humanize %}
+{% block title %}Studio · Awisee{% endblock %}
+{% block page_heading %}Campaign studio{% endblock %}
+{% block content %}
+  <form class="filter-bar" method="get">
+    <div class="field"><label>From</label><input type="date" name="from" value="{{ request.GET.from }}"></div>
+    <div class="field"><label>To</label><input type="date" name="to" value="{{ request.GET.to }}"></div>
+    <div class="field">
+      <label>Campaign</label>
+      <select name="campaign">
+        <option value="">All</option>
+        {% for item in all_campaigns %}
+          <option value="{{ item.pk }}" {% if campaign_filter == item.pk|stringformat:"s" %}selected{% endif %}>{{ item.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn-line" type="submit">Filter</button>
+  </form>
+  {% if missing %}
+    <div class="notice">{% for note in missing %}{{ note }} {% endfor %}</div>
+  {% endif %}
+  <section class="stat-grid">
+    <article class="stat"><span class="label">Campaigns</span><strong>{{ kpis.campaigns_total|intcomma }}</strong><em>{{ kpis.campaigns_active }} active · {{ kpis.campaigns_completed }} completed</em></article>
+    <article class="stat"><span class="label">Creators</span><strong>{{ kpis.creators_discovered|intcomma }}</strong><em>{{ kpis.creators_shortlisted }} shortlisted · {{ kpis.creators_assigned }} assigned</em></article>
+    <article class="stat"><span class="label">Invitations</span><strong>{{ kpis.invitations_sent|intcomma }}</strong><em>{{ kpis.invitations_responses }} recorded responses · {{ kpis.due_followups }} follow-ups due</em></article>
+    <article class="stat">
+      <span class="label">Budget</span>
+      <strong>{% if kpis.budget_sum is not None %}{{ kpis.budget_sum|intcomma }}{% else %}Not set{% endif %}</strong>
+      <em>{% if kpis.cost_sum is not None %}Recorded costs {{ kpis.cost_sum|intcomma }}{% else %}No recorded costs{% endif %} · {{ kpis.unrecorded_costs }} unrecorded</em>
+    </article>
+  </section>
+  <section class="stat-grid">
+    <article class="stat"><span class="label">Feedback yes-rate</span><strong>{% if kpis.acceptance_rate is not None %}{{ kpis.acceptance_rate }}%{% else %}—{% endif %}</strong><em>{{ kpis.feedback_total }} feedback row{{ kpis.feedback_total|pluralize }}</em></article>
+    <article class="stat"><span class="label">Classification eval</span><strong>{% if evaluation.ready %}{{ evaluation.f1 }}{% else %}—{% endif %}</strong><em>{{ evaluation.message }}</em></article>
+    <article class="stat"><span class="label">Job backlog</span><strong>{{ jobs.open|intcomma }}</strong><em>{{ jobs.pending }} pending · {{ jobs.blocked }} blocked · {{ jobs.failed }} failed</em></article>
+    <article class="stat"><span class="label">Onboarding ready</span><strong>{{ onboarding.ready|default:0 }}</strong><em>{{ onboarding.registered|default:0 }} registered · {{ onboarding.onboarding|default:0 }} onboarding</em></article>
+  </section>
+  <p class="kpi-note">{{ definitions.campaigns_total }} {{ definitions.invitations_sent }} {{ definitions.acceptance_rate }}</p>
+  <section class="two-col">
+    <article class="panel">
+      <h2>Campaign status</h2>
+      {% if charts.campaigns %}
+        <div class="chart-box"><canvas id="campaignChart"></canvas></div>
+        {{ charts.campaigns|json_script:"campaignChart-spec" }}
+      {% else %}
+        <p class="muted">No campaigns in this filter.</p>
+      {% endif %}
+    </article>
+    <article class="panel">
+      <h2>Invitation status</h2>
+      {% if charts.invites %}
+        <div class="chart-box"><canvas id="inviteChart"></canvas></div>
+        {{ charts.invites|json_script:"inviteChart-spec" }}
+      {% else %}
+        <p class="muted">No invitations in this filter.</p>
+      {% endif %}
+    </article>
+  </section>
+  <section class="two-col">
+    <article class="panel">
+      <h2>Recent campaigns</h2>
+      <table class="data">
+        <thead><tr><th>Name</th><th>Status</th><th>Budget</th></tr></thead>
+        <tbody>
+          {% for campaign in recent_campaigns %}
+            <tr>
+              <td><a href="{% url 'campaigns:detail' campaign.pk %}">{{ campaign.name }}</a></td>
+              <td>{{ campaign.get_status_display }}</td>
+              <td>{% if campaign.budget is not None %}{{ campaign.budget }}{% else %}Not set{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3">None yet. <a href="{% url 'campaigns:create' %}">Create a campaign</a>.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </article>
+    <article class="panel">
+      <h2>Team feedback load</h2>
+      {% for row in team_activity %}
+        <p>{{ row.user__email }} · {{ row.total }}</p>
+      {% empty %}
+        <p class="muted">No feedback in this filter.</p>
+      {% endfor %}
+      <h3 class="mt-3">Review queue</h3>
+      {% for row in review_queue %}
+        <p><a href="{% url 'creators:detail' row.creator_id %}">{{ row.creator }}</a> · {{ row.category.name|default:"unclassified" }}</p>
+      {% empty %}
+        <p class="muted">Empty.</p>
+      {% endfor %}
+    </article>
+  </section>
+{% endblock %}

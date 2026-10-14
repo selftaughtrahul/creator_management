@@ -1,0 +1,13 @@
+{% extends "allauth/layouts/base.html" %}
+{% block head_title %}Creator registration · Awisee{% endblock %}
+{% block content %}
+  <h1>Register as a creator</h1>
+  <p class="lede">Create a profile, then connect the social accounts you control. Audience demographics and contact details are only stored if you provide them or an authorized API returns them.</p>
+  <form method="post">
+    {% csrf_token %}
+    {% include "partials/form_fields.html" %}
+    <button type="submit">Create creator account</button>
+  </form>
+  <p class="mt-3">Already verified? <a href="{% url 'account_login' %}">Log in</a></p>
+  <p class="mt-2 muted">Team members should use the regular <a href="{% url 'account_signup' %}">studio signup</a>.</p>
+{% endblock %}

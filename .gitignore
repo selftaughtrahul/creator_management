@@ -5,4 +5,5 @@ db.sqlite3
 .env
 devcerts/
 staticfiles/
+media/
 .pytest_cache/
