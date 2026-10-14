@@ -15,7 +15,6 @@ class FetchedProfile:
     username: str = ""
     profile_url: str = ""
     avatar_url: str = ""
-    raw: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -66,7 +65,6 @@ class FetchResult:
     snapshots: list[FetchedSnapshot]
     contents: list[FetchedContent]
     note: str = ""
-    resource_token: str = ""
 
 
 def fetch_account(account):
@@ -118,7 +116,6 @@ def fetch_youtube(account):
             username=custom,
             profile_url=f"https://www.youtube.com/{custom.lstrip('/')}" if custom else f"https://www.youtube.com/channel/{channel.get('id')}",
             avatar_url=thumb,
-            raw={"statistics": stats},
         ),
         snapshots=snapshots,
         contents=contents,
@@ -203,11 +200,9 @@ def fetch_facebook(account):
             username=page.get("name") or "",
             profile_url=page.get("link") or "",
             avatar_url=picture,
-            raw={"fan_count": page.get("fan_count"), "followers_count": page.get("followers_count")},
         ),
         snapshots=snapshots,
         contents=contents,
-        resource_token=page_token,
         note=note,
     )
 
@@ -289,7 +284,6 @@ def fetch_instagram(account):
             username=username,
             profile_url=f"https://www.instagram.com/{username}/" if username else "",
             avatar_url=profile.get("profile_picture_url") or "",
-            raw=profile,
         ),
         snapshots=snapshots,
         contents=contents,
@@ -351,10 +345,6 @@ def fetch_twitter(account):
             username=username,
             profile_url=f"https://x.com/{username}" if username else "",
             avatar_url=data.get("profile_image_url") or "",
-            raw={
-                "description": data.get("description") or "",
-                "public_metrics": metrics,
-            },
         ),
         snapshots=[
             FetchedSnapshot(

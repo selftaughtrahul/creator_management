@@ -13,7 +13,6 @@ from accounts.models import (
 STAFF_ROLES = {
     StudioProfile.Role.ADMIN,
     StudioProfile.Role.EMPLOYEE,
-    StudioProfile.Role.TEAM,
 }
 
 
@@ -23,7 +22,7 @@ def is_admin(user):
     if user.is_superuser:
         return True
     profile = studio_profile(user)
-    return bool(profile and profile.role in {StudioProfile.Role.ADMIN, StudioProfile.Role.TEAM})
+    return bool(profile and profile.role == StudioProfile.Role.ADMIN)
 
 
 def is_employee(user):

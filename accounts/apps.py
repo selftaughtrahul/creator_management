@@ -35,7 +35,6 @@ def backfill_studio_profiles(sender, **kwargs):
 
     User = get_user_model()
     try:
-        StudioProfile.objects.filter(role=StudioProfile.Role.TEAM).update(role=StudioProfile.Role.ADMIN)
         missing = User.objects.filter(studio__isnull=True)
         StudioProfile.objects.bulk_create(
             [

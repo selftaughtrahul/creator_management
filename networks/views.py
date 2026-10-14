@@ -124,8 +124,6 @@ def oauth_callback(request, platform):
     expires_in = token.get("expires_in")
     if expires_in:
         account.token_expires_at = timezone.now() + timedelta(seconds=int(expires_in))
-    scope = token.get("scope")
-    account.scopes = scope if isinstance(scope, str) else " ".join(scope or [])
     account.last_error = ""
     account.save()
     try:

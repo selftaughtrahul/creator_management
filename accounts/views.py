@@ -148,7 +148,7 @@ def people(request):
 def person_detail(request, pk):
     profile = get_object_or_404(StudioProfile.objects.select_related("user"), pk=pk)
     initial = {
-        "role": profile.role if profile.role != StudioProfile.Role.TEAM else StudioProfile.Role.ADMIN,
+        "role": profile.role,
         "permissions": profile.permissions or list(DEFAULT_EMPLOYEE_PERMISSIONS),
         "is_active": profile.user.is_active,
     }

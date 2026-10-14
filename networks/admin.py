@@ -22,7 +22,7 @@ class SocialAccountAdmin(admin.ModelAdmin):
     )
     list_filter = ("platform", "is_sample")
     search_fields = ("display_name", "username", "external_id", "user__email")
-    exclude = ("access_token", "refresh_token", "resource_token")
+    exclude = ("access_token", "refresh_token")
     inlines = [SnapshotInline]
 
     @admin.display(boolean=True, description="Token stored")

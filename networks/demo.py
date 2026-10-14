@@ -198,7 +198,6 @@ def connect_sample(user, platform):
         is_sample=True,
         status_note="Sample data stored locally so you can explore analytics before connecting a live account.",
         last_synced_at=timezone.now(),
-        raw_profile={"source": "sample"},
     )
     today = timezone.localdate()
     snapshots = []

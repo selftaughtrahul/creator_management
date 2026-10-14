@@ -19,12 +19,9 @@ def sync_account(account):
     account.username = result.profile.username
     account.profile_url = result.profile.profile_url
     account.avatar_url = result.profile.avatar_url
-    account.raw_profile = result.profile.raw
     account.status_note = result.note
     account.last_error = ""
     account.last_synced_at = timezone.now()
-    if result.resource_token:
-        account.resource_token = result.resource_token
     account.save()
     for snapshot in result.snapshots:
         saved = _upsert_snapshot(account, snapshot)

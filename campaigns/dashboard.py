@@ -118,9 +118,7 @@ def studio_dashboard(request):
             "acceptance_rate": acceptance,
             "feedback_total": feedback_total,
             "due_followups": due_followups,
-            "admins": StudioProfile.objects.filter(
-                role__in=[StudioProfile.Role.ADMIN, StudioProfile.Role.TEAM]
-            ).count(),
+            "admins": StudioProfile.objects.filter(role=StudioProfile.Role.ADMIN).count(),
             "employees": StudioProfile.objects.filter(role=StudioProfile.Role.EMPLOYEE).count(),
             "creators_total": StudioProfile.objects.filter(role=StudioProfile.Role.CREATOR).count(),
             "social_accounts": SocialAccount.objects.count(),
@@ -134,7 +132,7 @@ def studio_dashboard(request):
             "budget_sum": "Sum of Campaign.budget where budget is set. Campaigns without a budget are omitted.",
             "cost_sum": "Sum of CampaignCreator.recorded_cost. Null costs are unrecorded, not treated as zero.",
             "acceptance_rate": "RecommendationFeedback decision=yes divided by all feedback rows. Hidden when none exist.",
-            "admins": "StudioProfile rows with role admin (legacy team counts as admin).",
+            "admins": "StudioProfile rows with role admin.",
             "employees": "StudioProfile rows with role employee.",
             "creators_total": "StudioProfile rows with role creator.",
             "social_accounts": "Connected SocialAccount rows across every user.",

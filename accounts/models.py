@@ -54,7 +54,6 @@ class StudioProfile(models.Model):
         ADMIN = "admin", "Admin"
         EMPLOYEE = "employee", "Employee"
         CREATOR = "creator", "Creator"
-        TEAM = "team", "Team (legacy)"
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -77,7 +76,7 @@ class StudioProfile(models.Model):
 
     @property
     def is_admin(self):
-        return self.role in {self.Role.ADMIN, self.Role.TEAM}
+        return self.role == self.Role.ADMIN
 
     @property
     def is_employee(self):
