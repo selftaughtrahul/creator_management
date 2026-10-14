@@ -27,7 +27,7 @@ Copy `.env.example` to `.env` and add the keys you have. Register these redirect
 | Instagram | `http://127.0.0.1:8000/connections/instagram/callback/` |
 | X | `http://127.0.0.1:8000/connections/twitter/callback/` |
 
-Instagram uses the official Graph API, so the account needs to be a professional account linked to a Facebook Page you manage. YouTube needs the Data API and Analytics API enabled. X uses OAuth 2.0 with Read access so the app can store followers and recent posts.
+Instagram uses the official Graph API, so the account needs to be a professional account linked to a Facebook Page you manage. A Meta app that uses Facebook Login for Business also needs `META_LOGIN_CONFIG_ID` from that app's login configuration. YouTube needs the Data API and Analytics API enabled. X uses OAuth 2.0 with Read access so the app can store followers and recent posts.
 
 Refresh everything from the command line with:
 

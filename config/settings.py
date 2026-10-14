@@ -124,6 +124,7 @@ YOUTUBE_CLIENT_SECRET = os.environ.get("YOUTUBE_CLIENT_SECRET", "") or GOOGLE_CL
 META_APP_ID = os.environ.get("META_APP_ID", "")
 META_APP_SECRET = os.environ.get("META_APP_SECRET", "")
 META_GRAPH_VERSION = os.environ.get("META_GRAPH_VERSION", "v23.0")
+META_LOGIN_CONFIG_ID = os.environ.get("META_LOGIN_CONFIG_ID", "")
 TWITTER_CLIENT_ID = os.environ.get("TWITTER_CLIENT_ID", "")
 TWITTER_CLIENT_SECRET = os.environ.get("TWITTER_CLIENT_SECRET", "")
 

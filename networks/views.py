@@ -67,7 +67,14 @@ def oauth_callback(request, platform):
     platform = _platform(platform)
     label = PLATFORMS[platform]["label"]
     if request.GET.get("error"):
-        messages.error(request, request.GET.get("error_description") or f"{label} did not finish connecting.")
+        description = request.GET.get("error_description") or ""
+        if platform in {"facebook", "instagram"} and "permission" in description.lower():
+            messages.error(
+                request,
+                f"{label} refused the permissions. Add a Facebook Login for Business configuration that includes the Page and Instagram permissions, then set META_LOGIN_CONFIG_ID in .env.",
+            )
+        else:
+            messages.error(request, description or f"{label} did not finish connecting.")
         return redirect("networks:connections")
     try:
         saved = pop_state(request, platform, request.GET.get("state", ""))

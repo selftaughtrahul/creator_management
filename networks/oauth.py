@@ -24,6 +24,10 @@ def begin_authorize(request, platform, redirect_uri):
         "state": state,
         **spec["extra"],
     }
+    if platform in {"facebook", "instagram"} and settings.META_LOGIN_CONFIG_ID:
+        params.pop("scope", None)
+        params["config_id"] = settings.META_LOGIN_CONFIG_ID
+        params["override_default_response_type"] = "true"
     if platform == "twitter":
         verifier, challenge = _pkce_pair()
         saved["code_verifier"] = verifier
