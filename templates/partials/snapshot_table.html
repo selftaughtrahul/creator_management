@@ -1,0 +1,31 @@
+{% load humanize %}
+<div class="table-wrap">
+  <table class="data">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>{{ audience_label }}</th>
+        <th>Change</th>
+        <th>Following</th>
+        <th>Views</th>
+        <th>Reach</th>
+        <th>Impressions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for point in history %}
+        <tr>
+          <td>{{ point.snapshot.captured_at|date:"d M Y" }}</td>
+          <td>{{ point.snapshot.followers|intcomma }}</td>
+          <td>{% include "partials/delta.html" with delta=point.delta %}</td>
+          <td>{{ point.snapshot.following|intcomma }}</td>
+          <td>{{ point.snapshot.views|intcomma }}</td>
+          <td>{{ point.snapshot.reach|intcomma }}</td>
+          <td>{{ point.snapshot.impressions|intcomma }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7">No snapshots saved yet. Sync this account to store the first one.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from networks.models import ContentItem, MetricSnapshot, SocialAccount
+from networks.models import AudienceBreakdown, ContentItem, MetricSnapshot, SocialAccount
 
 
 class SnapshotInline(admin.TabularInline):
@@ -28,6 +28,13 @@ class SocialAccountAdmin(admin.ModelAdmin):
     @admin.display(boolean=True, description="Token stored")
     def token_stored(self, obj):
         return obj.has_token
+
+
+@admin.register(AudienceBreakdown)
+class AudienceBreakdownAdmin(admin.ModelAdmin):
+    list_display = ("snapshot", "dimension", "label", "count", "basis")
+    list_filter = ("dimension", "basis", "snapshot__account__platform")
+    search_fields = ("label", "segment")
 
 
 @admin.register(ContentItem)

@@ -294,11 +294,49 @@ button, input, textarea, select { font-family: inherit; }
   padding: 12px 14px;
   margin-bottom: 16px;
 }
+.snapshot-block { margin-top: 18px; }
+.snapshot-block h3, .panel h3 { font-size: 22px; margin: 0 0 8px; }
+.snapshot-block .kicker { margin-bottom: 8px; }
 .table-wrap { overflow-x: auto; }
 table.data { width: 100%; border-collapse: collapse; }
 table.data th { text-align: left; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 8px; border-bottom: 1px solid var(--line); }
 table.data td { padding: 12px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 table.data a { color: var(--ink); font-weight: 600; }
+table.stats th, table.stats td { white-space: nowrap; }
+.account-cell {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 200px;
+  color: inherit;
+  text-decoration: none;
+}
+.account-cell strong { display: flex; gap: 8px; align-items: center; font-weight: 700; }
+.account-cell em { display: block; color: var(--muted); font-style: normal; font-size: 13px; font-weight: 500; }
+.account-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: white;
+  object-fit: cover;
+  flex: none;
+}
+.pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-weight: 700;
+  font-size: 13px;
+}
+.pill small { font-weight: 600; }
+.pill-up, .score-high { background: #dcfce7; color: #166534; }
+.pill-down, .score-low { background: #fee2e2; color: #991b1b; }
+.pill-flat { background: #f5f5f4; color: #57534e; }
+.score-mid { background: #ffedd5; color: #9a3412; }
 .empty {
   padding: 42px 20px;
   text-align: center;

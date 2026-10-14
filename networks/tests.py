@@ -1,3 +1,6 @@
+from datetime import datetime, timezone as dt_timezone
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -5,6 +8,7 @@ from django.urls import reverse
 from allauth.account.models import EmailAddress
 
 from networks.demo import PROFILES, connect_sample
+from networks.fetchers import _meta_audience_history, gender_bucket
 from networks.models import SocialAccount
 
 User = get_user_model()
@@ -31,6 +35,13 @@ class SampleConnectionTests(TestCase):
         self.assertContains(overview, "Studio overview")
         self.assertContains(overview, f"{audience:,}")
         self.assertContains(overview, "Sample")
+        self.assertContains(overview, "All data")
+        self.assertContains(overview, "Growth (30 days)")
+        self.assertContains(overview, "Posting habits")
+        self.assertContains(overview, "Audience snapshots")
+        self.assertContains(overview, "Audience demographics")
+        self.assertContains(overview, "India")
+        self.assertContains(overview, "Female")
         self.assertContains(overview, "Studio tour, ten minutes")
 
         youtube = self.client.get(reverse("analytics:platform", args=["youtube"]))
@@ -52,12 +63,43 @@ class SampleConnectionTests(TestCase):
         before = account.snapshots.count()
         self.client.post(reverse("networks:sync", args=["twitter"]))
         self.assertEqual(account.snapshots.count(), before + 1)
+        latest = account.snapshots.order_by("-captured_at").first()
+        previous = account.snapshots.order_by("-captured_at")[1]
+        self.assertGreater(latest.followers, previous.followers)
+        self.assertGreater(latest.breakdowns.filter(dimension="country").count(), 0)
+        self.assertGreater(latest.breakdowns.filter(dimension="gender").count(), 0)
         self.client.post(reverse("networks:disconnect", args=["twitter"]))
         self.assertFalse(SocialAccount.objects.filter(user=self.user, platform="twitter").exists())
 
     def test_live_oauth_without_keys_stays_on_connections(self):
         response = self.client.get(reverse("networks:start", args=["facebook"]))
         self.assertRedirects(response, reverse("networks:connections"))
+
+    def test_insight_history_rebuilds_daily_gains_into_totals(self):
+        payload = {
+            "data": [
+                {
+                    "name": "follower_count",
+                    "values": [
+                        {"value": 4, "end_time": "2026-10-12T07:00:00+0000"},
+                        {"value": 6, "end_time": "2026-10-13T07:00:00+0000"},
+                    ],
+                }
+            ]
+        }
+        with patch("networks.fetchers.api_get", return_value=payload):
+            snapshots = _meta_audience_history(
+                "1789",
+                "token",
+                metrics=("follower_count",),
+                followers_key="follower_count",
+                current_followers=100,
+            )
+        self.assertEqual(gender_bucket("F.25-34"), "female")
+        self.assertEqual(gender_bucket("M.18-24"), "male")
+        self.assertEqual(gender_bucket("U"), "unknown")
+        self.assertEqual([item.followers for item in snapshots], [94, 100])
+        self.assertEqual(snapshots[-1].captured_at, datetime(2026, 10, 13, 7, tzinfo=dt_timezone.utc))
 
     def test_anonymous_studio_redirects_to_login(self):
         self.client.logout()

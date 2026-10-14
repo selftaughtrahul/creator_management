@@ -65,6 +65,7 @@ OAUTH = {
         "token_url": "https://graph.facebook.com/{version}/oauth/access_token",
         "scopes": (
             "instagram_basic",
+            "instagram_manage_insights",
             "pages_show_list",
             "pages_read_engagement",
             "business_management",

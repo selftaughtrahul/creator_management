@@ -31,6 +31,11 @@
         </form>
       </div>
     </div>
+    <section class="panel">
+      <h2>All data</h2>
+      <p class="muted">This account from the latest snapshot and posts from the last 30 days.</p>
+      {% include "partials/platform_stats.html" with rows=stats_rows %}
+    </section>
     <section class="stat-grid">
       <article class="stat"><span class="label">{{ meta.audience_label }}</span><strong>{{ snapshot.followers|default:0|intcomma }}</strong></article>
       <article class="stat"><span class="label">Views</span><strong>{{ snapshot.views|default:0|intcomma }}</strong></article>
@@ -62,6 +67,27 @@
           <p class="muted">No view counts on the saved posts yet.</p>
         {% endif %}
       </article>
+    </section>
+    <section class="panel">
+      <h2>Audience snapshots</h2>
+      <p class="muted">One point is kept per day. Change is the difference from the previous saved day. A sync on the same day updates that point instead of adding another.</p>
+      {% include "partials/snapshot_table.html" with history=history audience_label=meta.audience_label %}
+    </section>
+    <section class="panel">
+      <h2>Audience demographics</h2>
+      {% include "partials/demographics.html" with demographics=demographics %}
+      {% if charts.countries or charts.genders %}
+        <div class="two-col">
+          {% if charts.countries %}
+            <div class="chart-box"><canvas id="countryChart"></canvas></div>
+            {{ charts.countries|json_script:"countryChart-spec" }}
+          {% endif %}
+          {% if charts.genders %}
+            <div class="chart-box"><canvas id="genderChart"></canvas></div>
+            {{ charts.genders|json_script:"genderChart-spec" }}
+          {% endif %}
+        </div>
+      {% endif %}
     </section>
     <section class="panel">
       <h2>Posts</h2>

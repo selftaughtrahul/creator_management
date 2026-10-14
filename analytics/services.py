@@ -3,12 +3,15 @@ from datetime import timedelta
 from django.db.models import Sum
 from django.utils import timezone
 
+from networks.demo import ensure_sample_demographics
 from networks.models import ContentItem
 from networks.platforms import PLATFORMS
 
 
 def build_dashboard(user):
-    accounts = list(user.social_accounts.all())
+    accounts = list(user.social_accounts.prefetch_related("contents"))
+    for account in accounts:
+        ensure_sample_demographics(account)
     snapshots = _snapshots(accounts)
     latest = _latest_by_account(snapshots)
     rows = []
@@ -16,6 +19,7 @@ def build_dashboard(user):
     for account in accounts:
         snap = latest.get(account.pk)
         content_count = account.contents.count()
+        history = [snapshot for snapshot in snapshots if snapshot.account_id == account.pk]
         rows.append(
             {
                 "account": account,
@@ -23,6 +27,9 @@ def build_dashboard(user):
                 "snapshot": snap,
                 "posts": content_count,
                 "rate": _content_rate(account),
+                "history": list(reversed(_with_deltas(history)[-14:])),
+                "demographics": _demographics(history),
+                "stats": _platform_stats(account, history, snap),
             }
         )
         if snap:
@@ -62,9 +69,11 @@ def build_dashboard(user):
 
 
 def build_platform(account):
-    snapshots = list(account.snapshots.order_by("captured_at"))
+    ensure_sample_demographics(account)
+    snapshots = list(account.snapshots.prefetch_related("breakdowns").order_by("captured_at"))
     latest = snapshots[-1] if snapshots else None
     contents = account.contents.all()
+    stats = _platform_stats(account, snapshots, latest)
     totals = contents.aggregate(
         views=Sum("views"),
         likes=Sum("likes"),
@@ -75,11 +84,22 @@ def build_platform(account):
     )
     reactions = sum(totals.get(key) or 0 for key in ("likes", "comments", "shares", "saves"))
     view_total = totals.get("views") or 0
+    demographics = _demographics(snapshots)
     return {
         "account": account,
         "meta": PLATFORMS[account.platform],
         "snapshot": latest,
         "snapshots": snapshots,
+        "history": list(reversed(_with_deltas(snapshots)[-30:])),
+        "demographics": demographics,
+        "stats": stats,
+        "stats_rows": [
+            {
+                "account": account,
+                "meta": PLATFORMS[account.platform],
+                "stats": stats,
+            }
+        ],
         "totals": {
             "views": view_total,
             "likes": totals.get("likes") or 0,
@@ -93,6 +113,8 @@ def build_platform(account):
         "charts": {
             "audience": _single_audience_chart(account, snapshots),
             "posts": _posts_chart(account, list(contents.order_by("-views")[:6])),
+            "countries": _breakdown_chart(demographics["countries"], PLATFORMS[account.platform]["color"]),
+            "genders": _gender_chart(demographics["genders"]),
         },
     }
 
@@ -138,6 +160,76 @@ def build_content(item):
     }
 
 
+def _platform_stats(account, history, latest):
+    cutoff = timezone.now() - timedelta(days=30)
+    posts = [item for item in account.contents.all() if item.published_at and item.published_at >= cutoff]
+    reactions = sum(item.reactions for item in posts)
+    views = sum(item.views or item.impressions for item in posts)
+    rate = _rate(reactions, views)
+    published = [item.published_at for item in account.contents.all() if item.published_at]
+    count = len(posts)
+    return {
+        "followers": latest.followers if latest else 0,
+        "growth": _growth(history, latest),
+        "last_activity": _ago(max(published) if published else None),
+        "activity": count,
+        "rate": rate,
+        "avg_engagement": round(reactions / count) if count else 0,
+        "avg_views": round(views / count) if count else 0,
+        "habit": _habit(count),
+        "score": _score(rate, count),
+    }
+
+
+def _growth(history, latest):
+    if not latest or len(history) < 2:
+        return None
+    target = timezone.localtime(latest.captured_at) - timedelta(days=30)
+    baseline = history[0]
+    for snapshot in history:
+        if snapshot.pk == latest.pk:
+            break
+        if timezone.localtime(snapshot.captured_at) <= target:
+            baseline = snapshot
+    if baseline.pk == latest.pk:
+        return None
+    delta = latest.followers - baseline.followers
+    percent = round(delta / baseline.followers * 100, 1) if baseline.followers else 0
+    return {"absolute": delta, "percent": percent, "days": max(1, (latest.captured_at - baseline.captured_at).days)}
+
+
+def _score(rate, posts):
+    if posts <= 0:
+        return None
+    return int(round(min(70, rate * 10) + min(30, posts * 2)))
+
+
+def _habit(count):
+    if count <= 0:
+        return "No posts"
+    if count >= 26:
+        return "Every day"
+    if count == 1:
+        return "Once this month"
+    interval = max(1, round(30 / count))
+    if interval <= 1:
+        return "Every day"
+    return f"Every {interval} days"
+
+
+def _ago(moment):
+    if moment is None:
+        return "—"
+    days = (timezone.now() - moment).days
+    if days <= 0:
+        return "Today"
+    if days == 1:
+        return "Yesterday"
+    if days < 30:
+        return f"{days} days ago"
+    return timezone.localtime(moment).strftime("%d %b %Y")
+
+
 def _snapshots(accounts):
     if not accounts:
         return []
@@ -147,8 +239,107 @@ def _snapshots(accounts):
     return list(
         MetricSnapshot.objects.filter(account__in=accounts, captured_at__gte=start)
         .select_related("account")
+        .prefetch_related("breakdowns")
         .order_by("captured_at")
     )
+
+
+def _demographics(history):
+    empty = {"countries": [], "genders": [], "estimated": False, "has_previous": False}
+    if not history:
+        return empty
+    latest = history[-1]
+    previous = history[-2] if len(history) > 1 else None
+    prior = {}
+    if previous is not None:
+        for row in previous.breakdowns.all():
+            prior[(row.dimension, row.segment)] = row.count
+    followers = latest.followers or 0
+    countries = []
+    genders = []
+    estimated = False
+    for row in latest.breakdowns.all():
+        estimated = estimated or row.basis == "estimated"
+        delta = None if previous is None else row.count - prior.get((row.dimension, row.segment), 0)
+        item = {
+            "label": row.label,
+            "count": row.count,
+            "delta": delta,
+            "share": round(row.count / followers * 100, 1) if followers else 0,
+        }
+        if row.dimension == "country":
+            countries.append(item)
+        elif row.dimension == "gender":
+            genders.append(item)
+    countries.sort(key=lambda item: item["count"], reverse=True)
+    genders.sort(key=lambda item: item["count"], reverse=True)
+    return {
+        "countries": countries[:10],
+        "genders": genders,
+        "estimated": estimated,
+        "has_previous": previous is not None,
+    }
+
+
+def _breakdown_chart(items, color):
+    items = items[:8]
+    if not items:
+        return None
+    return {
+        "type": "bar",
+        "data": {
+            "labels": [item["label"] for item in items],
+            "datasets": [
+                {
+                    "label": "Audience",
+                    "data": [item["count"] for item in items],
+                    "backgroundColor": color,
+                    "borderRadius": 6,
+                }
+            ],
+        },
+        "options": {
+            "indexAxis": "y",
+            "responsive": True,
+            "maintainAspectRatio": False,
+            "plugins": {"legend": {"display": False}},
+            "scales": {"x": {"beginAtZero": True, "ticks": {"precision": 0}}},
+        },
+    }
+
+
+def _gender_chart(items):
+    if not items:
+        return None
+    colors = {"Female": "#c2410c", "Male": "#1d4ed8", "Unknown": "#a8a29e"}
+    return {
+        "type": "doughnut",
+        "data": {
+            "labels": [item["label"] for item in items],
+            "datasets": [
+                {
+                    "data": [item["count"] for item in items],
+                    "backgroundColor": [colors.get(item["label"], "#78716c") for item in items],
+                    "borderWidth": 0,
+                }
+            ],
+        },
+        "options": {
+            "responsive": True,
+            "maintainAspectRatio": False,
+            "plugins": {"legend": {"position": "bottom"}},
+        },
+    }
+
+
+def _with_deltas(snapshots):
+    rows = []
+    previous = None
+    for snapshot in snapshots:
+        delta = None if previous is None else snapshot.followers - previous.followers
+        rows.append({"snapshot": snapshot, "delta": delta})
+        previous = snapshot
+    return rows
 
 
 def _latest_by_account(snapshots):

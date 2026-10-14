@@ -19,6 +19,15 @@ class FetchedProfile:
 
 
 @dataclass
+class AudienceSlice:
+    dimension: str
+    segment: str
+    label: str
+    count: int
+    basis: str = "followers"
+
+
+@dataclass
 class FetchedSnapshot:
     captured_at: datetime
     followers: int = 0
@@ -30,6 +39,7 @@ class FetchedSnapshot:
     shares: int = 0
     impressions: int = 0
     reach: int = 0
+    breakdowns: list = field(default_factory=list)
 
 
 @dataclass
@@ -96,6 +106,7 @@ def fetch_youtube(account):
             likes=sum(item.likes for item in contents),
             comments=sum(item.comments for item in contents),
             shares=sum(item.shares for item in contents),
+            breakdowns=_youtube_demographics(headers, followers),
         )
     )
     thumb = ((snippet.get("thumbnails") or {}).get("medium") or {}).get("url") or ""
@@ -157,6 +168,26 @@ def fetch_facebook(account):
         )
     picture = ((page.get("picture") or {}).get("data") or {}).get("url") or ""
     followers = as_int(page.get("followers_count") or page.get("fan_count"))
+    snapshots = _meta_audience_history(
+        str(page.get("id") or ""),
+        page_token,
+        metrics=("page_follows", "page_impressions"),
+        followers_key="page_follows",
+        impressions_key="page_impressions",
+        current_followers=followers,
+        content_count=len(contents),
+    )
+    snapshots.append(
+        FetchedSnapshot(
+            captured_at=timezone.now(),
+            followers=followers,
+            content_count=len(contents),
+            likes=sum(item.likes for item in contents),
+            comments=sum(item.comments for item in contents),
+            shares=sum(item.shares for item in contents),
+            breakdowns=_facebook_demographics(str(page.get("id") or ""), page_token),
+        )
+    )
     return FetchResult(
         profile=FetchedProfile(
             external_id=str(page.get("id") or ""),
@@ -166,16 +197,7 @@ def fetch_facebook(account):
             avatar_url=picture,
             raw={"fan_count": page.get("fan_count"), "followers_count": page.get("followers_count")},
         ),
-        snapshots=[
-            FetchedSnapshot(
-                captured_at=timezone.now(),
-                followers=followers,
-                content_count=len(contents),
-                likes=sum(item.likes for item in contents),
-                comments=sum(item.comments for item in contents),
-                shares=sum(item.shares for item in contents),
-            )
-        ],
+        snapshots=snapshots,
         contents=contents,
         resource_token=page_token,
     )
@@ -230,6 +252,30 @@ def fetch_instagram(account):
             )
         )
     username = profile.get("username") or ""
+    followers = as_int(profile.get("followers_count"))
+    following = as_int(profile.get("follows_count"))
+    content_count = as_int(profile.get("media_count")) or len(contents)
+    snapshots = _meta_audience_history(
+        str(ig_id),
+        page_token,
+        metrics=("follower_count", "reach"),
+        followers_key="follower_count",
+        reach_key="reach",
+        current_followers=followers,
+        following=following,
+        content_count=content_count,
+    )
+    snapshots.append(
+        FetchedSnapshot(
+            captured_at=timezone.now(),
+            followers=followers,
+            following=following,
+            content_count=content_count,
+            likes=sum(item.likes for item in contents),
+            comments=sum(item.comments for item in contents),
+            breakdowns=_instagram_demographics(str(ig_id), page_token),
+        )
+    )
     return FetchResult(
         profile=FetchedProfile(
             external_id=str(profile.get("id") or ig_id),
@@ -239,16 +285,7 @@ def fetch_instagram(account):
             avatar_url=profile.get("profile_picture_url") or "",
             raw=profile,
         ),
-        snapshots=[
-            FetchedSnapshot(
-                captured_at=timezone.now(),
-                followers=as_int(profile.get("followers_count")),
-                following=as_int(profile.get("follows_count")),
-                content_count=as_int(profile.get("media_count")) or len(contents),
-                likes=sum(item.likes for item in contents),
-                comments=sum(item.comments for item in contents),
-            )
-        ],
+        snapshots=snapshots,
         contents=contents,
         resource_token=page_token,
     )
@@ -406,6 +443,7 @@ def _youtube_history(headers, current_followers, video_count):
         parsed.append(
             {
                 "captured_at": day,
+                "views": as_int(record.get("views")),
                 "likes": as_int(record.get("likes")),
                 "comments": as_int(record.get("comments")),
                 "shares": as_int(record.get("shares")),
@@ -424,12 +462,236 @@ def _youtube_history(headers, current_followers, video_count):
                 captured_at=record["captured_at"],
                 followers=audience,
                 content_count=video_count,
+                views=record["views"],
                 likes=record["likes"],
                 comments=record["comments"],
                 shares=record["shares"],
             )
         )
     return snapshots
+
+
+def _meta_audience_history(
+    path,
+    token,
+    *,
+    metrics,
+    followers_key,
+    current_followers,
+    impressions_key="",
+    reach_key="",
+    following=0,
+    content_count=0,
+):
+    days = _insight_days(path, token, metrics)
+    if not days and len(metrics) > 1:
+        days = _insight_days(path, token, metrics[:1])
+    ordered = sorted(days.items())
+    rows = []
+    for _day, values in ordered:
+        rows.append(
+            {
+                "captured_at": values["captured_at"],
+                "followers": as_int(values.get(followers_key)),
+                "impressions": as_int(values.get(impressions_key)) if impressions_key else 0,
+                "reach": as_int(values.get(reach_key)) if reach_key else 0,
+            }
+        )
+    if _series_is_daily_gain(rows, current_followers):
+        running = current_followers
+        for row in reversed(rows):
+            gained = row["followers"]
+            row["followers"] = running
+            running = max(0, running - gained)
+    return [
+        FetchedSnapshot(
+            captured_at=row["captured_at"],
+            followers=row["followers"],
+            following=following,
+            content_count=content_count,
+            impressions=row["impressions"],
+            reach=row["reach"],
+        )
+        for row in rows
+    ]
+
+
+def _insight_days(path, token, metrics):
+    end = timezone.now()
+    start = end - timedelta(days=28)
+    try:
+        report = api_get(
+            graph(f"{path}/insights"),
+            params={
+                "metric": ",".join(metrics),
+                "period": "day",
+                "since": int(start.timestamp()),
+                "until": int(end.timestamp()),
+                "access_token": token,
+            },
+        )
+    except ProviderError:
+        return {}
+    days = {}
+    for metric in report.get("data") or []:
+        name = metric.get("name")
+        if not name:
+            continue
+        for point in metric.get("values") or []:
+            captured = _parse_dt(point.get("end_time"))
+            value = point.get("value")
+            if captured is None or isinstance(value, (dict, list)):
+                continue
+            day = timezone.localtime(captured).date()
+            days.setdefault(day, {"captured_at": captured})
+            days[day][name] = value
+    return days
+
+
+def _series_is_daily_gain(rows, current_followers):
+    if not rows or not current_followers:
+        return False
+    peak = max(row["followers"] for row in rows)
+    return peak < current_followers / 2
+
+
+def _instagram_demographics(ig_id, token):
+    countries = _demographic_breakdown(ig_id, token, "country")
+    genders = _demographic_breakdown(ig_id, token, "gender")
+    return country_slices(countries) + gender_slices(genders)
+
+
+def _facebook_demographics(page_id, token):
+    countries = {}
+    for metric in ("page_follows_country", "page_fans_country"):
+        countries = _lifetime_dict(page_id, token, metric)
+        if countries:
+            break
+    genders = _lifetime_dict(page_id, token, "page_fans_gender_age")
+    return country_slices(countries) + gender_slices(genders)
+
+
+def _youtube_demographics(headers, followers):
+    end = timezone.localdate()
+    start = end - timedelta(days=28)
+    countries = _youtube_share(headers, "country", start, end, followers)
+    genders = _youtube_share(headers, "gender", start, end, followers)
+    return country_slices(countries, basis="estimated") + gender_slices(genders, basis="estimated")
+
+
+def _demographic_breakdown(path, token, breakdown):
+    try:
+        report = api_get(
+            graph(f"{path}/insights"),
+            params={
+                "metric": "follower_demographics",
+                "period": "lifetime",
+                "metric_type": "total_value",
+                "breakdown": breakdown,
+                "access_token": token,
+            },
+        )
+    except ProviderError:
+        return {}
+    counts = {}
+    for metric in report.get("data") or []:
+        total = metric.get("total_value") or {}
+        groups = total.get("breakdowns") or []
+        if not groups and isinstance(metric.get("values"), list):
+            groups = metric.get("values") or []
+        for group in groups:
+            results = group.get("results") or []
+            if not results and isinstance(group.get("value"), dict):
+                for key, value in group["value"].items():
+                    counts[str(key)] = counts.get(str(key), 0) + as_int(value)
+            for result in results:
+                values = result.get("dimension_values") or []
+                key = str(values[0]) if values else ""
+                if key:
+                    counts[key] = counts.get(key, 0) + as_int(result.get("value"))
+    return counts
+
+
+def _lifetime_dict(path, token, metric):
+    try:
+        report = api_get(
+            graph(f"{path}/insights"),
+            params={"metric": metric, "period": "lifetime", "access_token": token},
+        )
+    except ProviderError:
+        return {}
+    latest = None
+    for row in report.get("data") or []:
+        for point in row.get("values") or []:
+            if isinstance(point.get("value"), dict):
+                latest = point["value"]
+    return latest or {}
+
+
+def _youtube_share(headers, dimension, start, end, followers):
+    try:
+        report = api_get(
+            "https://youtubeanalytics.googleapis.com/v2/reports",
+            headers=headers,
+            params={
+                "ids": "channel==MINE",
+                "startDate": start.isoformat(),
+                "endDate": end.isoformat(),
+                "metrics": "viewerPercentage",
+                "dimensions": dimension,
+            },
+        )
+    except ProviderError:
+        return {}
+    headers_row = [column.get("name") for column in report.get("columnHeaders") or []]
+    if dimension not in headers_row or "viewerPercentage" not in headers_row:
+        return {}
+    counts = {}
+    for row in report.get("rows") or []:
+        record = dict(zip(headers_row, row))
+        key = str(record.get(dimension) or "")
+        if not key:
+            continue
+        try:
+            share = float(record.get("viewerPercentage") or 0)
+        except (TypeError, ValueError):
+            share = 0
+        counts[key] = int(round(share / 100 * followers))
+    return {key: count for key, count in counts.items() if count}
+
+
+def country_slices(counts, basis="followers"):
+    from networks.countries import country_label
+
+    slices = []
+    for code, count in counts.items():
+        amount = as_int(count)
+        if not amount:
+            continue
+        segment = str(code).strip().upper()
+        slices.append(AudienceSlice("country", segment, country_label(segment), amount, basis))
+    return slices
+
+
+def gender_slices(counts, basis="followers"):
+    labels = {"female": "Female", "male": "Male", "unknown": "Unknown"}
+    buckets = {"female": 0, "male": 0, "unknown": 0}
+    for key, count in counts.items():
+        buckets[gender_bucket(key)] += as_int(count)
+    return [
+        AudienceSlice("gender", key, labels[key], amount, basis)
+        for key, amount in buckets.items()
+        if amount
+    ]
+
+
+def gender_bucket(key):
+    text = str(key or "").strip().lower().replace("_", "").replace(" ", "")
+    if text.startswith("f"):
+        return "female"
+    if text.startswith("m"):
+        return "male"
+    return "unknown"
 
 
 def _summary_count(payload):

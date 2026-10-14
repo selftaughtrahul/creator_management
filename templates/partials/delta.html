@@ -1,0 +1,8 @@
+{% load humanize %}
+{% if delta is None %}
+  —
+{% elif delta > 0 %}
+  +{{ delta|intcomma }}
+{% else %}
+  {{ delta|intcomma }}
+{% endif %}

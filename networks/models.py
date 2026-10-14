@@ -80,6 +80,39 @@ class MetricSnapshot(models.Model):
         return self.likes + self.comments + self.shares
 
 
+class AudienceBreakdown(models.Model):
+    class Dimension(models.TextChoices):
+        COUNTRY = "country", "Country"
+        GENDER = "gender", "Gender"
+
+    class Basis(models.TextChoices):
+        FOLLOWERS = "followers", "Followers"
+        ESTIMATED = "estimated", "Estimated from viewer share"
+
+    snapshot = models.ForeignKey(
+        MetricSnapshot,
+        on_delete=models.CASCADE,
+        related_name="breakdowns",
+    )
+    dimension = models.CharField(max_length=20, choices=Dimension.choices)
+    segment = models.CharField(max_length=80)
+    label = models.CharField(max_length=80)
+    count = models.PositiveIntegerField(default=0)
+    basis = models.CharField(max_length=20, choices=Basis.choices, default=Basis.FOLLOWERS)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["snapshot", "dimension", "segment"],
+                name="unique_snapshot_segment",
+            )
+        ]
+        ordering = ["dimension", "-count", "label"]
+
+    def __str__(self):
+        return f"{self.get_dimension_display()} · {self.label}"
+
+
 class ContentItem(models.Model):
     account = models.ForeignKey(
         SocialAccount,

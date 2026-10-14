@@ -2,8 +2,71 @@ from datetime import datetime, time, timedelta
 
 from django.utils import timezone
 
-from networks.models import ContentItem, MetricSnapshot, SocialAccount
+from networks.models import AudienceBreakdown, ContentItem, MetricSnapshot, SocialAccount
 from networks.platforms import PLATFORMS
+
+DEMOGRAPHICS = {
+    "instagram": {
+        "countries": [
+            ("IN", "India", 0.32),
+            ("US", "United States", 0.16),
+            ("GB", "United Kingdom", 0.09),
+            ("AE", "United Arab Emirates", 0.08),
+            ("CA", "Canada", 0.07),
+            ("AU", "Australia", 0.06),
+            ("DE", "Germany", 0.06),
+            ("BR", "Brazil", 0.05),
+            ("FR", "France", 0.06),
+            ("ID", "Indonesia", 0.05),
+        ],
+        "genders": [("female", "Female", 0.61), ("male", "Male", 0.36), ("unknown", "Unknown", 0.03)],
+    },
+    "facebook": {
+        "countries": [
+            ("IN", "India", 0.28),
+            ("US", "United States", 0.18),
+            ("GB", "United Kingdom", 0.10),
+            ("CA", "Canada", 0.08),
+            ("AU", "Australia", 0.07),
+            ("DE", "Germany", 0.07),
+            ("AE", "United Arab Emirates", 0.06),
+            ("BR", "Brazil", 0.06),
+            ("FR", "France", 0.05),
+            ("PH", "Philippines", 0.05),
+        ],
+        "genders": [("female", "Female", 0.54), ("male", "Male", 0.43), ("unknown", "Unknown", 0.03)],
+    },
+    "youtube": {
+        "countries": [
+            ("US", "United States", 0.24),
+            ("IN", "India", 0.22),
+            ("GB", "United Kingdom", 0.09),
+            ("CA", "Canada", 0.08),
+            ("DE", "Germany", 0.07),
+            ("BR", "Brazil", 0.07),
+            ("AU", "Australia", 0.06),
+            ("FR", "France", 0.06),
+            ("MX", "Mexico", 0.06),
+            ("ID", "Indonesia", 0.05),
+        ],
+        "genders": [("female", "Female", 0.41), ("male", "Male", 0.55), ("unknown", "Unknown", 0.04)],
+    },
+    "twitter": {
+        "countries": [
+            ("US", "United States", 0.30),
+            ("IN", "India", 0.18),
+            ("GB", "United Kingdom", 0.12),
+            ("CA", "Canada", 0.08),
+            ("AU", "Australia", 0.06),
+            ("DE", "Germany", 0.06),
+            ("BR", "Brazil", 0.05),
+            ("FR", "France", 0.05),
+            ("NG", "Nigeria", 0.05),
+            ("JP", "Japan", 0.05),
+        ],
+        "genders": [("female", "Female", 0.38), ("male", "Male", 0.57), ("unknown", "Unknown", 0.05)],
+    },
+}
 
 PROFILES = {
     "instagram": {
@@ -142,7 +205,8 @@ def connect_sample(user, platform):
                 reach=int(profile["reach"] * scale),
             )
         )
-    MetricSnapshot.objects.bulk_create(snapshots)
+    saved = MetricSnapshot.objects.bulk_create(snapshots)
+    _write_breakdowns(saved, platform)
     items = []
     for external_id, title, kind, days_ago, views, likes, comments, shares, impressions in POSTS[platform]:
         items.append(
@@ -166,11 +230,23 @@ def connect_sample(user, platform):
     return account
 
 
+def ensure_sample_demographics(account):
+    if not account.is_sample or account.platform not in DEMOGRAPHICS:
+        return
+    if AudienceBreakdown.objects.filter(snapshot__account=account).exists():
+        return
+    snapshots = list(account.snapshots.all())
+    if snapshots:
+        _write_breakdowns(snapshots, account.platform)
+
+
 def tick_sample(account):
     last = account.snapshots.order_by("-captured_at").first()
     if last is None:
         return connect_sample(account.user, account.platform)
-    MetricSnapshot.objects.create(
+    ensure_sample_demographics(account)
+    last = account.snapshots.order_by("-captured_at").first()
+    created = MetricSnapshot.objects.create(
         account=account,
         captured_at=timezone.now(),
         followers=last.followers + max(1, last.followers // 400),
@@ -183,7 +259,48 @@ def tick_sample(account):
         impressions=last.impressions + max(30, last.impressions // 300),
         reach=last.reach + max(10, last.reach // 300),
     )
+    ratio = created.followers / last.followers if last.followers else 1
+    AudienceBreakdown.objects.bulk_create(
+        [
+            AudienceBreakdown(
+                snapshot=created,
+                dimension=row.dimension,
+                segment=row.segment,
+                label=row.label,
+                count=max(0, round(row.count * ratio)),
+                basis=row.basis,
+            )
+            for row in last.breakdowns.all()
+        ]
+    )
     account.last_synced_at = timezone.now()
     account.last_error = ""
     account.save(update_fields=["last_synced_at", "last_error"])
     return account
+
+
+def _write_breakdowns(snapshots, platform):
+    spec = DEMOGRAPHICS[platform]
+    rows = []
+    for snapshot in snapshots:
+        for segment, label, share in spec["countries"]:
+            rows.append(
+                AudienceBreakdown(
+                    snapshot=snapshot,
+                    dimension=AudienceBreakdown.Dimension.COUNTRY,
+                    segment=segment,
+                    label=label,
+                    count=max(0, round(snapshot.followers * share)),
+                )
+            )
+        for segment, label, share in spec["genders"]:
+            rows.append(
+                AudienceBreakdown(
+                    snapshot=snapshot,
+                    dimension=AudienceBreakdown.Dimension.GENDER,
+                    segment=segment,
+                    label=label,
+                    count=max(0, round(snapshot.followers * share)),
+                )
+            )
+    AudienceBreakdown.objects.bulk_create(rows)

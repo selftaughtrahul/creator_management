@@ -4,7 +4,7 @@ from django.utils import timezone
 
 from networks.demo import tick_sample
 from networks.fetchers import fetch_account
-from networks.models import ContentItem, MetricSnapshot
+from networks.models import AudienceBreakdown, ContentItem, MetricSnapshot
 
 
 def sync_account(account):
@@ -27,7 +27,8 @@ def sync_account(account):
         account.resource_token = result.resource_token
     account.save()
     for snapshot in result.snapshots:
-        _upsert_snapshot(account, snapshot)
+        saved = _upsert_snapshot(account, snapshot)
+        _replace_breakdowns(saved, snapshot)
     for item in result.contents:
         if not item.external_id:
             continue
@@ -76,3 +77,24 @@ def _upsert_snapshot(account, snapshot):
         existing.save()
         return existing
     return MetricSnapshot.objects.create(account=account, **fields)
+
+
+def _replace_breakdowns(saved, snapshot):
+    slices = list(snapshot.breakdowns or [])
+    if not slices:
+        return
+    saved.breakdowns.all().delete()
+    AudienceBreakdown.objects.bulk_create(
+        [
+            AudienceBreakdown(
+                snapshot=saved,
+                dimension=item.dimension,
+                segment=item.segment,
+                label=item.label,
+                count=item.count,
+                basis=item.basis,
+            )
+            for item in slices
+            if item.count
+        ]
+    )

@@ -1,0 +1,65 @@
+{% load humanize %}
+<div class="table-wrap">
+  <table class="data stats">
+    <thead>
+      <tr>
+        <th>Social media</th>
+        <th>Score</th>
+        <th>Followers</th>
+        <th>Growth (30 days)</th>
+        <th>Last activity</th>
+        <th>Activity (30 days)</th>
+        <th>Eng. rate (30 days)</th>
+        <th>Avg. eng. (30 days)</th>
+        <th>Avg. views (30 days)</th>
+        <th>Posting habits</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>
+            <a class="account-cell" href="{% url 'analytics:platform' row.account.platform %}">
+              {% if row.account.avatar_url %}
+                <img class="account-mark" src="{{ row.account.avatar_url }}" alt="">
+              {% else %}
+                <span class="account-mark" style="background: {{ row.meta.color }}"><i class="bi {{ row.meta.icon }}"></i></span>
+              {% endif %}
+              <span>
+                <strong>
+                  {{ row.account.display_name|default:row.meta.label }}
+                  {% if row.account.is_sample %}<span class="badge-sample">Sample</span>{% else %}<span class="badge-live">Live</span>{% endif %}
+                </strong>
+                <em>{% if row.account.username %}{% if "@" not in row.account.username %}@{% endif %}{{ row.account.username }}{% else %}{{ row.meta.label }}{% endif %}</em>
+              </span>
+            </a>
+          </td>
+          <td>
+            {% if row.stats.score is None %}
+              —
+            {% else %}
+              <span class="pill {% if row.stats.score >= 70 %}score-high{% elif row.stats.score >= 40 %}score-mid{% else %}score-low{% endif %}">{{ row.stats.score }}</span>
+            {% endif %}
+          </td>
+          <td>{{ row.stats.followers|intcomma }}</td>
+          <td>
+            {% if row.stats.growth %}
+              <span class="pill {% if row.stats.growth.absolute > 0 %}pill-up{% elif row.stats.growth.absolute < 0 %}pill-down{% else %}pill-flat{% endif %}" title="Over {{ row.stats.growth.days }} saved day{{ row.stats.growth.days|pluralize }}">
+                {% if row.stats.growth.absolute > 0 %}+{% endif %}{{ row.stats.growth.absolute|intcomma }}
+                <small>{% if row.stats.growth.percent > 0 %}+{% endif %}{{ row.stats.growth.percent }}%</small>
+              </span>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>{{ row.stats.last_activity }}</td>
+          <td>{{ row.stats.activity|intcomma }} post{{ row.stats.activity|pluralize }}</td>
+          <td>{{ row.stats.rate }}%</td>
+          <td>{{ row.stats.avg_engagement|intcomma }}</td>
+          <td>{{ row.stats.avg_views|intcomma }}</td>
+          <td>{{ row.stats.habit }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
