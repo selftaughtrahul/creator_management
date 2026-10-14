@@ -26,7 +26,7 @@ def search_creators(query_text=None, criteria=None, *, page=1, per_page=10, sort
         queryset = queryset.filter(display_name__icontains=filters["name"])
     queryset = queryset.select_related("user").prefetch_related(
         "niches",
-        "user__social_accounts__snapshots",
+        "user__social_accounts__snapshots__breakdowns",
         "user__social_accounts__contents",
         Prefetch(
             "classifications",

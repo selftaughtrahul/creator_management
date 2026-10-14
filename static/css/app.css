@@ -465,6 +465,28 @@ table.stats th, table.stats td { white-space: nowrap; }
   margin-bottom: 16px;
 }
 .filter-bar .field { margin: 0; min-width: 160px; }
+.creator-accordion { display: flex; flex-direction: column; gap: 6px; }
+.creator-accordion .accordion-item { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
+.creator-accordion .accordion-button { display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; white-space: nowrap; background: var(--card); color: var(--ink); box-shadow: none; min-height: 0; padding: 6px 36px 6px 12px; }
+.creator-accordion .accordion-button:not(.collapsed) { background: #fffdf8; color: var(--ink); }
+.creator-accordion .accordion-button:focus { box-shadow: none; }
+.creator-accordion .accordion-body { padding: 8px 12px; }
+.creator-acc-main { display: flex; flex-direction: row; align-items: baseline; gap: 8px; min-width: 0; flex: 0 1 auto; }
+.creator-acc-main strong { font-size: 14px; }
+.creator-acc-main .badge-source { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.creator-statline { display: flex; flex-wrap: nowrap; gap: 14px; margin-left: auto; }
+.creator-statline span { display: flex; flex-direction: row; align-items: baseline; gap: 4px; }
+.creator-statline small { color: var(--muted); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
+.creator-statline strong { font-size: 13px; }
+.creator-statline em { font-style: normal; font-size: 11px; color: var(--muted); }
+.creator-statline em.up { color: #166534; }
+.creator-statline em.down { color: #991b1b; }
+.metric-grid { display: flex; flex-wrap: nowrap; gap: 12px; margin: 2px 0 6px; overflow-x: auto; }
+.metric-grid div { padding: 0; background: transparent; border: 0; }
+.metric-grid small { color: var(--muted); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; margin-right: 4px; }
+.metric-grid strong { font-size: 13px; }
+.platform-table { font-size: 12px; margin: 0 0 6px; }
+.platform-table th, .platform-table td { padding: 4px 8px; white-space: nowrap; }
 .reason-list { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
 .kpi-note { font-size: 13px; color: var(--muted); margin-top: 8px; }
 

@@ -131,6 +131,85 @@ def _engagement(creator):
     }
 
 
+def growth_summary(creator):
+    """30-day growth and averages from stored snapshots and posts. Missing history stays empty."""
+    cutoff = timezone.now() - timedelta(days=30)
+    followers = views = None
+    follower_base = views_base = None
+    posts = []
+    for account in creator.user.social_accounts.all():
+        snapshots = sorted(account.snapshots.all(), key=lambda item: item.captured_at)
+        if snapshots:
+            latest = snapshots[-1]
+            followers = (followers or 0) + latest.followers
+            views = (views or 0) + latest.views
+            baseline = None
+            target = timezone.localtime(latest.captured_at) - timedelta(days=30)
+            for snapshot in snapshots:
+                if snapshot.pk == latest.pk:
+                    break
+                if timezone.localtime(snapshot.captured_at) <= target:
+                    baseline = snapshot
+            if baseline is None and len(snapshots) > 1:
+                baseline = snapshots[0]
+            if baseline is not None and baseline.pk != latest.pk:
+                follower_base = (follower_base or 0) + baseline.followers
+                views_base = (views_base or 0) + baseline.views
+        for item in account.contents.all():
+            if item.published_at and item.published_at >= cutoff:
+                posts.append(item)
+    reactions = sum(item.reactions for item in posts)
+    post_views = sum(item.views or item.impressions or 0 for item in posts)
+    count = len(posts)
+    return {
+        "followers": followers,
+        "follower_growth": _delta(followers, follower_base),
+        "views": views,
+        "views_growth": _delta(views, views_base),
+        "engagement": round(reactions / post_views * 100, 1) if post_views else None,
+        "avg_engagement": round(reactions / count) if count else None,
+        "avg_views": round(post_views / count) if count else None,
+        "posts": count,
+    }
+
+
+def _delta(latest, baseline):
+    if latest is None or baseline is None:
+        return None
+    change = latest - baseline
+    percent = round(change / baseline * 100, 1) if baseline else 0
+    return {"absolute": change, "percent": percent}
+
+
+def account_metrics(creator):
+    """Latest stored numbers for each connected account. Missing snapshots stay unavailable."""
+    rows = []
+    for account in creator.user.social_accounts.all():
+        snapshots = list(account.snapshots.all())
+        latest = max(snapshots, key=lambda item: item.captured_at) if snapshots else None
+        contents = list(account.contents.all())
+        content_totals = {
+            "posts": len(contents),
+            "views": sum(item.views for item in contents),
+            "likes": sum(item.likes for item in contents),
+            "comments": sum(item.comments for item in contents),
+            "shares": sum(item.shares for item in contents),
+            "saves": sum(item.saves for item in contents),
+            "impressions": sum(item.impressions for item in contents),
+            "watch_time_seconds": sum(item.watch_time_seconds for item in contents),
+        }
+        breakdowns = list(latest.breakdowns.all()) if latest else []
+        rows.append(
+            {
+                "account": account,
+                "snapshot": latest,
+                "breakdowns": breakdowns,
+                "content": content_totals,
+            }
+        )
+    return rows
+
+
 def latest_snapshot_map(creators):
     user_ids = [creator.user_id for creator in creators]
     rows = (

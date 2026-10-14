@@ -20,7 +20,7 @@ from creators.forms import (
 )
 from campaigns.search import search_creators
 from creators.jobs import enqueue_job, process_pending_jobs, retry_job
-from creators.metrics import creator_metrics
+from creators.metrics import account_metrics, creator_metrics, growth_summary
 from creators.parser import chat_turn, criteria_active, empty_criteria
 from creators.models import (
     Classification,
@@ -239,11 +239,20 @@ def creator_directory(request):
         page = results["page"]
         cards = list(page.object_list)
     else:
-        rows = CreatorProfile.objects.select_related("user")
+        rows = CreatorProfile.objects.select_related("user").prefetch_related(
+            "niches",
+            "user__social_accounts__snapshots__breakdowns",
+            "user__social_accounts__contents",
+            "classifications__category",
+            "classifications__subcategory",
+        )
         if query:
             rows = rows.filter(display_name__icontains=query)
         page = Paginator(rows, 12).get_page(request.GET.get("page"))
         cards = [{"creator": creator, "metrics": creator_metrics(creator)} for creator in page]
+    for card in cards:
+        card["accounts"] = account_metrics(card["creator"])
+        card["growth"] = growth_summary(card["creator"])
     return render(
         request,
         "creators/directory.html",

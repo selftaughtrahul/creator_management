@@ -110,6 +110,8 @@ class CampaignAndSearchTests(TestCase):
         page = self.client.get(reverse("creators:directory"))
         self.assertContains(page, "Discover")
         self.assertContains(page, self.creator.display_name)
+        self.assertContains(page, "creator-metrics-%s" % self.creator.pk)
+        self.assertContains(page, "Reach")
         self.assertContains(page, self.other.display_name)
         self.client.post(
             reverse("creators:discover_chat"),
