@@ -4,7 +4,7 @@ from django.core.paginator import Paginator
 from django.db.models import Prefetch
 
 from creators.metrics import creator_metrics
-from creators.models import Category, Classification, CreatorProfile, Subcategory
+from creators.models import Category, Classification, ClassificationLabel, CreatorProfile, Subcategory
 from creators.parser import parse_query
 
 
@@ -25,12 +25,16 @@ def search_creators(query_text=None, criteria=None, *, page=1, per_page=10, sort
     if filters.get("name"):
         queryset = queryset.filter(display_name__icontains=filters["name"])
     queryset = queryset.select_related("user").prefetch_related(
-        "niches",
+        "niches__category",
         "user__social_accounts__snapshots__breakdowns",
         "user__social_accounts__contents",
         Prefetch(
             "classifications",
             queryset=Classification.objects.select_related("category", "subcategory").order_by("-created_at"),
+        ),
+        Prefetch(
+            "labels",
+            queryset=ClassificationLabel.objects.select_related("category", "subcategory"),
         ),
     )
     rows = []
@@ -63,7 +67,6 @@ def score_creator(metrics, criteria):
     missing = list(metrics["missing"])
     score = 0
     eligible = True
-    creator = metrics["creator"]
 
     location = (criteria.get("location") or "").strip()
     if location:
@@ -103,40 +106,30 @@ def score_creator(metrics, criteria):
         if overlap:
             score += 2
             reasons.append(f"Connected platforms include {', '.join(overlap)}.")
-        elif metrics["platforms"]:
-            eligible = False
-            reasons.append("No connected account on the requested platforms.")
         else:
+            if metrics["platforms"]:
+                eligible = False
             reasons.append("No connected account on the requested platforms.")
 
     niche = criteria.get("niche")
     subcategory = criteria.get("subcategory")
-    classification = metrics["classification"]
-    niche_ok = False
+    profile = metrics["niche"]
     if subcategory:
-        slugs = {item.slug for item in creator.niches.all()}
-        if subcategory in slugs:
-            niche_ok = True
-        elif classification and classification.subcategory and classification.subcategory.slug == subcategory:
-            niche_ok = True
-        if niche_ok:
+        matched = subcategory in profile["subcategory_slugs"]
+        if matched:
             score += 3
-            reasons.append(f"Subcategory {subcategory} matched ({metrics['niche']['source']}).")
-        elif metrics["niche"]["value"]:
+            reasons.append(f"Subcategory {subcategory} matched ({profile['source']}).")
+        elif profile["value"]:
             eligible = False
             reasons.append(f"Subcategory {subcategory} was not matched.")
         else:
             reasons.append(f"Subcategory {subcategory} was not matched.")
     elif niche:
-        slugs = {item.category.slug for item in creator.niches.select_related("category")}
-        if niche in slugs:
-            niche_ok = True
-        elif classification and classification.category and classification.category.slug == niche:
-            niche_ok = True
-        if niche_ok:
+        matched = niche in profile["category_slugs"]
+        if matched:
             score += 2
-            reasons.append(f"Category {niche} matched ({metrics['niche']['source']}).")
-        elif metrics["niche"]["value"]:
+            reasons.append(f"Category {niche} matched ({profile['source']}).")
+        elif profile["value"]:
             eligible = False
             reasons.append(f"Category {niche} was not matched.")
         else:

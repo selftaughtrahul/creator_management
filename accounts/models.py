@@ -74,22 +74,6 @@ class StudioProfile(models.Model):
     def __str__(self):
         return f"{self.user} · {self.get_role_display()}"
 
-    @property
-    def is_admin(self):
-        return self.role == self.Role.ADMIN
-
-    @property
-    def is_employee(self):
-        return self.role == self.Role.EMPLOYEE
-
-    @property
-    def is_team(self):
-        return self.is_admin or self.is_employee
-
-    @property
-    def is_creator(self):
-        return self.role == self.Role.CREATOR
-
 
 class Notification(models.Model):
     class Kind(models.TextChoices):

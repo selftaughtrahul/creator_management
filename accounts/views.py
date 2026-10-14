@@ -52,8 +52,6 @@ def creator_login(request):
 
 def staff_login(request):
     if request.user.is_authenticated:
-        if is_staff_role(request.user):
-            return redirect(home_url(request.user))
         return redirect(home_url(request.user))
     form = LoginForm(request.POST or None, request=request)
     if request.method == "POST" and form.is_valid():

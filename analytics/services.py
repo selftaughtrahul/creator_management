@@ -4,7 +4,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from networks.demo import ensure_sample_demographics
-from networks.models import ContentItem
+from networks.models import ContentItem, reaction_rate
 from networks.platforms import PLATFORMS
 
 
@@ -57,7 +57,7 @@ def build_dashboard(user):
             "comments": comments,
             "shares": shares,
             "reactions": reactions,
-            "rate": _rate(reactions, views),
+            "rate": reaction_rate(reactions, views),
         },
         "charts": {
             "audience": _audience_chart(accounts, snapshots),
@@ -108,7 +108,11 @@ def build_platform(account):
             "saves": totals.get("saves") or 0,
             "impressions": totals.get("impressions") or 0,
             "reactions": reactions,
-            "rate": _rate(reactions, view_total or (latest.views if latest else 0)),
+            "rate": reaction_rate(
+                reactions,
+                view_total or (latest.views if latest else 0),
+                totals.get("impressions") or 0,
+            ),
         },
         "charts": {
             "audience": _single_audience_chart(account, snapshots),
@@ -165,7 +169,7 @@ def _platform_stats(account, history, latest):
     posts = [item for item in account.contents.all() if item.published_at and item.published_at >= cutoff]
     reactions = sum(item.reactions for item in posts)
     views = sum(item.views or item.impressions for item in posts)
-    rate = _rate(reactions, views)
+    rate = reaction_rate(reactions, views)
     published = [item.published_at for item in account.contents.all() if item.published_at]
     count = len(posts)
     return {
@@ -352,19 +356,14 @@ def _latest_by_account(snapshots):
 def _content_rate(account):
     totals = account.contents.aggregate(
         views=Sum("views"),
+        impressions=Sum("impressions"),
         likes=Sum("likes"),
         comments=Sum("comments"),
         shares=Sum("shares"),
         saves=Sum("saves"),
     )
     reactions = sum(totals.get(key) or 0 for key in ("likes", "comments", "shares", "saves"))
-    return _rate(reactions, totals.get("views") or 0)
-
-
-def _rate(reactions, views):
-    if not views:
-        return 0
-    return round(reactions / views * 100, 1)
+    return reaction_rate(reactions, totals.get("views") or 0, totals.get("impressions") or 0)
 
 
 def _audience_chart(accounts, snapshots):

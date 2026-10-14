@@ -155,7 +155,11 @@ class ContentItem(models.Model):
 
     @property
     def engagement_rate(self):
-        base = self.views or self.impressions
-        if not base:
-            return 0
-        return round(self.reactions / base * 100, 1)
+        return reaction_rate(self.reactions, self.views, self.impressions)
+
+
+def reaction_rate(reactions, views=0, impressions=0):
+    base = views or impressions
+    if not base:
+        return 0
+    return round(reactions / base * 100, 1)

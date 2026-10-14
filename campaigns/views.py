@@ -28,6 +28,7 @@ from campaigns.models import (
     RecommendationFeedback,
 )
 from campaigns.outreach import record_outcome, send_invitation
+from campaigns.status import apply_offer_response
 from campaigns.sample_data import delete_studio_sample, load_studio_sample
 from campaigns.search import search_creators
 from creators.jobs import enqueue_job
@@ -440,24 +441,10 @@ def decide_offer(request, pk):
     offer = get_object_or_404(Offer, pk=pk)
     action = request.POST.get("action")
     if action == "accept":
-        offer.state = Offer.State.ACCEPTED
-        offer.decided_by = request.user
-        offer.save(update_fields=["state", "decided_by", "updated_at"])
-        membership, _ = CampaignCreator.objects.get_or_create(
-            campaign=offer.campaign,
-            creator=offer.creator,
-            defaults={"added_by": request.user, "state": CampaignCreator.State.ASSIGNED},
-        )
-        if membership.recorded_cost is None:
-            membership.recorded_cost = offer.amount
-            membership.state = CampaignCreator.State.ASSIGNED
-            membership.save()
-        offer.creator.refresh_status()
+        apply_offer_response(offer, accepted=True, actor=request.user, notify=False)
         messages.success(request, "Offer accepted by a team member.")
     elif action == "decline":
-        offer.state = Offer.State.DECLINED
-        offer.decided_by = request.user
-        offer.save(update_fields=["state", "decided_by", "updated_at"])
+        apply_offer_response(offer, accepted=False, actor=request.user, notify=False)
         messages.success(request, "Offer declined.")
     return redirect("campaigns:detail", pk=offer.campaign_id)
 

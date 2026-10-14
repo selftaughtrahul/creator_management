@@ -41,11 +41,6 @@ def is_staff_role(user):
     return bool(profile and profile.role in STAFF_ROLES)
 
 
-def is_team(user):
-    """Staff access: admin or employee. Kept for older call sites."""
-    return is_staff_role(user)
-
-
 def is_creator(user):
     if not user or not user.is_authenticated:
         return False
@@ -86,10 +81,6 @@ def staff_required(view):
         return view(request, *args, **kwargs)
 
     return wrapped
-
-
-def team_required(view):
-    return staff_required(view)
 
 
 def admin_required(view):

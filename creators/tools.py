@@ -16,10 +16,6 @@ BRAND_SAFETY_TERMS = (
 )
 
 
-def engagement_from_content(creator):
-    return creator_metrics(creator)["engagement"]
-
-
 def bot_risk_indicators(creator):
     totals = ContentItem.objects.filter(account__user=creator.user).aggregate(
         likes=Sum("likes"),

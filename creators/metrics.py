@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.db.models import Sum
 from django.utils import timezone
 
-from networks.models import ContentItem, MetricSnapshot
+from networks.models import ContentItem, MetricSnapshot, reaction_rate
 
 
 STALE_AFTER = timedelta(days=30)
@@ -29,11 +29,12 @@ def creator_metrics(creator):
             latest_sync = account.last_synced_at
 
     engagement = _engagement(creator)
-    classification = creator.classifications.select_related("category", "subcategory").first()
+    niche = resolved_niche(creator)
+    classification = niche["classification"]
     missing = []
     if not creator.location:
         missing.append("location")
-    if not creator.niches.exists() and not (classification and classification.category):
+    if niche["value"] is None:
         missing.append("niche")
     if followers is None:
         missing.append("followers")
@@ -56,18 +57,6 @@ def creator_metrics(creator):
         if sample:
             follower_source += " (sample)"
 
-    niche = None
-    niche_source = "unavailable"
-    niche_provenance = "unavailable"
-    if classification and classification.category:
-        niche = classification.subcategory.name if classification.subcategory else classification.category.name
-        niche_source = f"Classification ({classification.get_method_display()})"
-        niche_provenance = classification.provenance
-    elif creator.niches.exists():
-        niche = ", ".join(item.name for item in creator.niches.all())
-        niche_source = "CreatorProfile.niches"
-        niche_provenance = "verified"
-
     return {
         "creator": creator,
         "platforms": platforms,
@@ -88,11 +77,7 @@ def creator_metrics(creator):
             "source": "CreatorProfile" if creator.location else "unavailable",
             "provenance": "verified" if creator.location else "unavailable",
         },
-        "niche": {
-            "value": niche,
-            "source": niche_source,
-            "provenance": niche_provenance,
-        },
+        "niche": niche,
         "classification": classification,
         "last_synced_at": latest_sync,
         "stale": stale,
@@ -112,8 +97,9 @@ def _engagement(creator):
         impressions=Sum("impressions"),
     )
     reactions = sum(totals.get(key) or 0 for key in ("likes", "comments", "shares", "saves"))
-    base = totals.get("views") or totals.get("impressions") or 0
-    if not base:
+    views = totals.get("views") or 0
+    impressions = totals.get("impressions") or 0
+    if not (views or impressions):
         return {
             "value": None,
             "source": "unavailable",
@@ -121,14 +107,77 @@ def _engagement(creator):
             "reactions": reactions,
             "base": 0,
         }
-    rate = round(reactions / base * 100, 1)
+    rate = reaction_rate(reactions, views, impressions)
     return {
         "value": rate,
         "source": "ContentItem aggregate (reactions / views or impressions)",
         "provenance": "verified",
         "reactions": reactions,
-        "base": base,
+        "base": views or impressions,
     }
+
+
+def resolved_niche(creator):
+    """Display prefers a review label, then the latest classification, then self-declared niches.
+
+    Match slugs include every source so search does not ignore a label or a self-declared niche.
+    """
+    classification = _latest_classification(creator)
+    label = _review_label(creator)
+    category_slugs = set()
+    subcategory_slugs = set()
+    for item in creator.niches.all():
+        subcategory_slugs.add(item.slug)
+        if item.category_id:
+            category_slugs.add(item.category.slug)
+    if classification and classification.category_id:
+        category_slugs.add(classification.category.slug)
+        if classification.subcategory_id:
+            subcategory_slugs.add(classification.subcategory.slug)
+    if label and label.category_id:
+        category_slugs.add(label.category.slug)
+        if label.subcategory_id:
+            subcategory_slugs.add(label.subcategory.slug)
+
+    value = None
+    source = "unavailable"
+    provenance = "unavailable"
+    if label and label.category_id:
+        value = label.subcategory.name if label.subcategory_id else label.category.name
+        source = "ClassificationLabel"
+        provenance = "verified"
+    elif classification and classification.category_id:
+        value = classification.subcategory.name if classification.subcategory_id else classification.category.name
+        source = f"Classification ({classification.get_method_display()})"
+        provenance = classification.provenance
+    elif creator.niches.exists():
+        value = ", ".join(item.name for item in creator.niches.all())
+        source = "CreatorProfile.niches"
+        provenance = "verified"
+    return {
+        "value": value,
+        "source": source,
+        "provenance": provenance,
+        "category_slugs": category_slugs,
+        "subcategory_slugs": subcategory_slugs,
+        "classification": classification,
+    }
+
+
+def _latest_classification(creator):
+    cached = getattr(creator, "_prefetched_objects_cache", {})
+    if "classifications" in cached:
+        rows = list(creator.classifications.all())
+        return rows[0] if rows else None
+    return creator.classifications.select_related("category", "subcategory").first()
+
+
+def _review_label(creator):
+    cached = getattr(creator, "_prefetched_objects_cache", {})
+    if "labels" in cached:
+        rows = list(creator.labels.all())
+        return rows[0] if rows else None
+    return creator.labels.select_related("category", "subcategory").first()
 
 
 def growth_summary(creator):
@@ -166,7 +215,7 @@ def growth_summary(creator):
         "follower_growth": _delta(followers, follower_base),
         "views": views,
         "views_growth": _delta(views, views_base),
-        "engagement": round(reactions / post_views * 100, 1) if post_views else None,
+        "engagement": reaction_rate(reactions, post_views) if post_views else None,
         "avg_engagement": round(reactions / count) if count else None,
         "avg_views": round(post_views / count) if count else None,
         "posts": count,

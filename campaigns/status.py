@@ -34,7 +34,7 @@ def apply_invitation_response(invitation, *, accepted, actor, note=""):
     return invitation
 
 
-def apply_offer_response(offer, *, accepted, actor, note=""):
+def apply_offer_response(offer, *, accepted, actor, note="", notify=True):
     offer.state = Offer.State.ACCEPTED if accepted else Offer.State.DECLINED
     offer.decided_by = actor
     if note:
@@ -61,5 +61,6 @@ def apply_offer_response(offer, *, accepted, actor, note=""):
             related.outcome_at = timezone.now()
             related.outcome_note = related.outcome_note or "Accepted with the offer."
             related.save(update_fields=["status", "outcome_at", "outcome_note"])
-    notify_staff_offer_response(offer)
+    if notify:
+        notify_staff_offer_response(offer)
     return offer
