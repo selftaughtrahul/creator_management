@@ -3,6 +3,7 @@ from django.core.management.base import BaseCommand
 from networks.http import ProviderError
 from networks.models import SocialAccount
 from networks.sync import sync_account
+from networks.instagram.jobs import enqueue_instagram_sync, process_instagram_job
 from networks.youtube.jobs import enqueue_youtube_sync, process_youtube_job
 
 
@@ -22,6 +23,11 @@ class Command(BaseCommand):
                     process_youtube_job(job)
                     if job.status not in {"completed", "partial"}:
                         raise ProviderError(job.last_error or "YouTube sync did not finish.")
+                elif account.platform == "instagram" and not account.is_sample and account.has_token:
+                    job = enqueue_instagram_sync(account, mode="incremental")
+                    process_instagram_job(job)
+                    if job.status not in {"completed", "partial"}:
+                        raise ProviderError(job.last_error or "Instagram sync did not finish.")
                 else:
                     sync_account(account)
             except ProviderError as exc:

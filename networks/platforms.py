@@ -6,7 +6,7 @@ PLATFORMS = {
         "icon": "bi-instagram",
         "color": "#c13584",
         "audience_label": "Followers",
-        "blurb": "Followers and recent posts from the Instagram account you authorize.",
+        "blurb": "Followers, posts, comments, and insights from the professional Instagram account you authorize.",
     },
     "facebook": {
         "label": "Facebook",
@@ -65,7 +65,11 @@ OAUTH = {
     "instagram": {
         "auth_url": "https://www.instagram.com/oauth/authorize",
         "token_url": "https://api.instagram.com/oauth/access_token",
-        "scopes": ("instagram_business_basic",),
+        "scopes": (
+            "instagram_business_basic",
+            "instagram_business_manage_insights",
+            "instagram_business_manage_comments",
+        ),
         "extra": {"enable_fb_login": "0"},
         "client_id": lambda: settings.INSTAGRAM_APP_ID,
         "client_secret": lambda: settings.INSTAGRAM_APP_SECRET,

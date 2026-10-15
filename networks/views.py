@@ -221,6 +221,26 @@ def oauth_callback(request, platform):
                 )
             return _leave_callback(request, saved, "analytics:platform", kwargs={"platform": platform})
         messages.info(request, "A full YouTube sync is queued. Run process_youtube_jobs to finish it.")
+    if platform == "instagram":
+        from networks.instagram.jobs import enqueue_instagram_sync, maybe_run as run_instagram
+
+        job = enqueue_instagram_sync(
+            account,
+            mode="full",
+            requested_by=user,
+            scopes=token.get("scope") or "",
+        )
+        if settings.INSTAGRAM_SYNC_EAGER:
+            run_instagram(job)
+            if job.status in {"completed", "partial"}:
+                messages.success(request, f"{label} is connected and the Instagram sync is saved.")
+            else:
+                messages.error(
+                    request,
+                    f"{label} is connected, but the sync did not finish. {job.last_error}",
+                )
+            return _leave_callback(request, saved, "analytics:platform", kwargs={"platform": platform})
+        messages.info(request, "A full Instagram sync is queued. Run process_instagram_jobs to finish it.")
     try:
         sync_account(account)
     except ProviderError as exc:
@@ -270,6 +290,28 @@ def _queue_youtube(request, account, mode, *, run=False):
     return False
 
 
+def _queue_instagram(request, account, mode, *, run=False):
+    from networks.instagram.jobs import enqueue_instagram_sync, maybe_run, process_instagram_job
+
+    job = enqueue_instagram_sync(account, mode=mode, requested_by=request.user)
+    if run or settings.INSTAGRAM_SYNC_EAGER:
+        if run:
+            process_instagram_job(job)
+        else:
+            maybe_run(job)
+        if job.status == "completed":
+            messages.success(request, "Instagram sync finished.")
+        elif job.status == "partial":
+            messages.warning(request, job.last_error or "Instagram sync finished with some sections skipped.")
+        elif job.status == "pending":
+            messages.info(request, "Instagram sync is still running. Refresh the Instagram page in a moment.")
+        else:
+            messages.error(request, job.last_error or "Instagram sync failed.")
+        return True
+    messages.success(request, "Instagram sync is queued. Run process_instagram_jobs to finish it.")
+    return False
+
+
 @creator_required
 @require_POST
 def sync(request, platform):
@@ -279,6 +321,10 @@ def sync(request, platform):
         mode = "full" if request.POST.get("mode") == "full" else "incremental"
         _queue_youtube(request, account, mode, run=True)
         return redirect("analytics:platform", platform="youtube")
+    if platform == "instagram" and not account.is_sample:
+        mode = "full" if request.POST.get("mode") == "full" else "incremental"
+        _queue_instagram(request, account, mode, run=True)
+        return redirect("analytics:platform", platform="instagram")
     try:
         sync_account(account)
     except ProviderError as exc:
@@ -300,6 +346,10 @@ def sync_all(request):
         try:
             if account.platform == "youtube" and not account.is_sample:
                 queued_only = not _queue_youtube(request, account, "incremental")
+                if queued_only:
+                    sync_account(account)
+            elif account.platform == "instagram" and not account.is_sample:
+                queued_only = not _queue_instagram(request, account, "incremental")
                 if queued_only:
                     sync_account(account)
             else:

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from networks import views
+from networks.instagram import api as instagram_api
 from networks.youtube import api as youtube_api
 
 app_name = "networks"
@@ -17,6 +18,13 @@ urlpatterns = [
     path("api/youtube/videos/<str:video_id>/comments/", youtube_api.video_comments, name="youtube_comments"),
     path("api/youtube/videos/<str:video_id>/transcript/", youtube_api.video_transcript, name="youtube_transcript"),
     path("api/youtube/sync-jobs/<int:job_id>/", youtube_api.sync_job_detail, name="youtube_job"),
+    path("api/instagram/profile/", instagram_api.profile_detail, name="instagram_profile"),
+    path("api/instagram/media/", instagram_api.media_list, name="instagram_media"),
+    path("api/instagram/media/<str:media_id>/", instagram_api.media_detail, name="instagram_media_detail"),
+    path("api/instagram/media/<str:media_id>/comments/", instagram_api.media_comments, name="instagram_comments"),
+    path("api/instagram/insights/", instagram_api.insights, name="instagram_insights"),
+    path("api/instagram/sync/", instagram_api.sync_now, name="instagram_sync"),
+    path("api/instagram/sync-jobs/<int:job_id>/", instagram_api.sync_job_detail, name="instagram_job"),
     path("connections/", views.connections, name="connections"),
     path("connections/sync/", views.sync_all, name="sync_all"),
     path("connections/<slug:platform>/start/", views.start_oauth, name="start"),

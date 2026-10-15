@@ -174,3 +174,11 @@ from networks.youtube_models import (  # noqa: E402,F401
     YouTubeVideo,
     YouTubeVideoComment,
 )
+from networks.instagram_models import (  # noqa: E402,F401
+    InstagramComment,
+    InstagramInsightBreakdown,
+    InstagramMedia,
+    InstagramProfile,
+    InstagramSnapshot,
+    InstagramSyncJob,
+)

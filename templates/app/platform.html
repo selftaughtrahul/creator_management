@@ -29,15 +29,27 @@
           {% csrf_token %}
           <button class="btn-line" type="submit">Sync</button>
         </form>
-        {% if platform == "youtube" and not account.is_sample and account.has_token %}
+        {% if platform == "youtube" or platform == "instagram" %}
+          {% if not account.is_sample and account.has_token %}
           <form method="post" action="{% url 'networks:sync' account.platform %}">
             {% csrf_token %}
             <input type="hidden" name="mode" value="full">
             <button class="btn-line" type="submit">Full sync</button>
           </form>
+          {% endif %}
         {% endif %}
       </div>
     </div>
+    {% if platform == "instagram" and not account.is_sample %}
+      {% if instagram %}
+        {% include "partials/instagram_platform.html" %}
+      {% else %}
+        <section class="panel">
+          <h2>Instagram library</h2>
+          <p class="muted">No deep sync is saved yet. Full sync loads the profile, posts, comments, and authorized insights onto this page.</p>
+        </section>
+      {% endif %}
+    {% endif %}
     {% if platform == "youtube" and not account.is_sample %}
       {% if youtube %}
         {% include "partials/youtube_platform.html" %}

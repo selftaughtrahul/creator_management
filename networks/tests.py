@@ -94,6 +94,10 @@ class SampleConnectionTests(TestCase):
         self.assertIn("client_id=2133499753913865", response.url)
         self.assertIn("enable_fb_login=0", response.url)
         self.assertIn("scope=instagram_business_basic", response.url)
+        self.assertIn("instagram_business_manage_insights", response.url)
+        self.assertIn("instagram_business_manage_comments", response.url)
+        self.assertIn("instagram_business_manage_insights", response.url)
+        self.assertIn("instagram_business_manage_comments", response.url)
         self.assertIn(
             "redirect_uri=https%3A%2F%2Flocalhost%3A8000%2Fconnections%2Finstagram%2Fcallback%2F",
             response.url,
@@ -216,3 +220,4 @@ class SampleConnectionTests(TestCase):
 
 
 from networks.youtube_tests import YouTubeApiTests, YouTubeClientTests, YouTubeSyncTests  # noqa: E402,F401
+from networks.instagram_tests import InstagramClientTests, InstagramSyncTests  # noqa: E402,F401

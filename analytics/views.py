@@ -7,6 +7,8 @@ from analytics.services import build_content, build_dashboard, build_platform
 from networks.models import ContentItem, SocialAccount
 from networks.platforms import PLATFORMS
 from networks.views import consume_oauth_notices
+from networks.instagram.present import media_context as instagram_media_context
+from networks.instagram.present import platform_context as instagram_platform_context
 from networks.youtube.present import platform_context, video_context
 
 
@@ -27,6 +29,8 @@ def platform(request, platform):
         context["page"] = Paginator(account.contents.all(), 8).get_page(request.GET.get("page"))
         if platform == "youtube":
             context["youtube"] = platform_context(account, request.GET.get("yt_page"))
+        if platform == "instagram":
+            context["instagram"] = instagram_platform_context(account, request.GET.get("ig_page"))
     return render(request, "app/platform.html", context)
 
 
@@ -40,4 +44,6 @@ def content(request, pk):
     context = build_content(item)
     if item.account.platform == "youtube":
         context["youtube"] = video_context(item)
+    if item.account.platform == "instagram":
+        context["instagram"] = instagram_media_context(item)
     return render(request, "app/content.html", context)

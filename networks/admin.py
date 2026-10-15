@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from networks.models import AudienceBreakdown, ContentItem, MetricSnapshot, SocialAccount
+from networks.instagram_models import InstagramMedia, InstagramProfile, InstagramSyncJob
 from networks.youtube_models import (
     YouTubeChannel,
     YouTubeSnapshot,
@@ -89,3 +90,22 @@ class ContentItemAdmin(admin.ModelAdmin):
     list_display = ("title", "account", "content_type", "views", "likes", "published_at")
     list_filter = ("content_type", "account__platform")
     search_fields = ("title", "caption", "external_id")
+
+
+@admin.register(InstagramProfile)
+class InstagramProfileAdmin(admin.ModelAdmin):
+    list_display = ("username", "ig_user_id", "account", "sync_status", "followers_count", "last_success_at")
+    search_fields = ("username", "name", "ig_user_id")
+    list_filter = ("sync_status", "reauthorization_required")
+
+
+@admin.register(InstagramMedia)
+class InstagramMediaAdmin(admin.ModelAdmin):
+    list_display = ("media_id", "profile", "media_product_type", "like_count", "views", "published_at")
+    search_fields = ("media_id", "caption")
+
+
+@admin.register(InstagramSyncJob)
+class InstagramSyncJobAdmin(admin.ModelAdmin):
+    list_display = ("id", "account", "mode", "status", "outcome", "media_upserted", "created_at")
+    list_filter = ("status", "outcome", "mode")

@@ -11,6 +11,7 @@ from networks.http import ProviderError
 from networks.models import SocialAccount
 from networks.sync import sync_account
 from networks.youtube.client import YouTubeAPIError
+from networks.instagram.client import InstagramAPIError
 
 logger = logging.getLogger("creators.jobs")
 
@@ -98,6 +99,10 @@ def process_job(job):
             from networks.youtube.jobs import run_for_account
 
             run_for_account(account, mode="incremental", requested_by=job.requested_by)
+        elif account.platform == "instagram":
+            from networks.instagram.jobs import run_for_account as run_instagram
+
+            run_instagram(account, mode="incremental", requested_by=job.requested_by)
         else:
             sync_account(account)
     except YouTubeAPIError as exc:
@@ -105,6 +110,10 @@ def process_job(job):
             return _finish(job, EnrichmentJob.Status.FAILED, str(exc))
         if exc.kind == "quota":
             return _finish(job, EnrichmentJob.Status.BLOCKED, str(exc))
+        return _retry_or_fail(job, str(exc))
+    except InstagramAPIError as exc:
+        if exc.kind in {"permission", "permanent", "token"}:
+            return _finish(job, EnrichmentJob.Status.FAILED, str(exc))
         return _retry_or_fail(job, str(exc))
     except ProviderError as exc:
         return _retry_or_fail(job, str(exc))

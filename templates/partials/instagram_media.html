@@ -1,0 +1,39 @@
+{% load humanize %}
+<section class="panel">
+  <h2>Instagram post</h2>
+  <p class="muted">
+    {{ instagram.media.media_id }}
+    · {{ instagram.media.media_product_type|default:instagram.media.media_type }}
+    {% if instagram.media.comments_sync_status %}· comments {{ instagram.media.comments_sync_status }}{% endif %}
+  </p>
+  {% if instagram.media.comments_sync_error %}<p class="error-text">{{ instagram.media.comments_sync_error }}</p>{% endif %}
+  <div class="stat-grid">
+    <article class="stat"><span class="label">Likes</span><strong>{% if instagram.media.like_count == None %}Hidden{% else %}{{ instagram.media.like_count|intcomma }}{% endif %}</strong></article>
+    <article class="stat"><span class="label">Views</span><strong>{% if instagram.media.views == None %}—{% else %}{{ instagram.media.views|intcomma }}{% endif %}</strong></article>
+    <article class="stat"><span class="label">Reach</span><strong>{% if instagram.media.reach == None %}—{% else %}{{ instagram.media.reach|intcomma }}{% endif %}</strong></article>
+    <article class="stat"><span class="label">Saved</span><strong>{% if instagram.media.saved == None %}—{% else %}{{ instagram.media.saved|intcomma }}{% endif %}</strong></article>
+  </div>
+  {% if instagram.media.avg_watch_time_ms != None or instagram.media.total_watch_time_ms != None %}
+    <p class="muted">
+      Average watch {% if instagram.media.avg_watch_time_ms == None %}—{% else %}{{ instagram.media.avg_watch_time_ms|intcomma }} ms{% endif %}
+      · total watch {% if instagram.media.total_watch_time_ms == None %}—{% else %}{{ instagram.media.total_watch_time_ms|intcomma }} ms{% endif %}
+    </p>
+  {% endif %}
+</section>
+{% if instagram.comments %}
+  <section class="panel">
+    <h2>Comments</h2>
+    <table class="data">
+      <thead><tr><th>Author</th><th>Comment</th><th>Likes</th></tr></thead>
+      <tbody>
+        {% for comment in instagram.comments %}
+          <tr>
+            <td>{% if comment.is_reply %}Reply · {% endif %}{{ comment.username|default:"—" }}</td>
+            <td>{{ comment.text }}</td>
+            <td>{% if comment.like_count == None %}—{% else %}{{ comment.like_count|intcomma }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}
