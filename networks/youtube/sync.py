@@ -568,15 +568,29 @@ def _sync_transcripts(channels, client, job, limits):
     _stage(job, "transcripts", status, f"transcripts={saved} failures={failures}")
 
 
+ANALYTICS_API_DISABLED = (
+    "YouTube Analytics API is not enabled for this Google Cloud project. "
+    "Enable it in Google Cloud Console, then sync again."
+)
+
+
+def _scopes_omit_analytics(channel):
+    scopes = channel.granted_scopes or ""
+    if not scopes:
+        return False
+    return "yt-analytics.readonly" not in scopes and "yt-analytics-monetary.readonly" not in scopes
+
+
 def _sync_channel_analytics(channels, client, job, limits):
     end = timezone.localdate()
     start = end - timedelta(days=limits["analytics_days"])
     failures = 0
     for channel in channels:
-        if channel.analytics_authorized is False:
+        if _scopes_omit_analytics(channel):
             _stage(job, "channel_analytics", "permission_denied", "Analytics scope is not granted.")
+            channel.analytics_authorized = False
             channel.reauthorization_required = True
-            channel.save(update_fields=["reauthorization_required"])
+            channel.save(update_fields=["analytics_authorized", "reauthorization_required"])
             return
         try:
             _analytics_daily(client, channel, start, end, "", None)
@@ -588,6 +602,13 @@ def _sync_channel_analytics(channels, client, job, limits):
             if exc.kind == "quota":
                 _stage(job, "channel_analytics", "quota_exhausted", str(exc))
                 raise
+            if exc.kind == "not_configured" or exc.reason == "accessNotConfigured":
+                channel.analytics_authorized = None
+                channel.reauthorization_required = False
+                channel.save(update_fields=["analytics_authorized", "reauthorization_required"])
+                _stage(job, "channel_analytics", "unavailable", ANALYTICS_API_DISABLED)
+                logger.info("youtube_analytics_not_configured channel_id=%s", channel.channel_id)
+                return
             if exc.kind == "permission":
                 channel.analytics_authorized = False
                 channel.reauthorization_required = True
@@ -601,8 +622,9 @@ def _sync_channel_analytics(channels, client, job, limits):
 
 
 def _sync_video_analytics(channels, client, job, limits):
-    if any(channel.analytics_authorized is False for channel in channels):
-        _stage(job, "video_analytics", "skipped", "Channel analytics is not authorized.")
+    channel_stage = (job.stages or {}).get("channel_analytics", {}).get("status")
+    if channel_stage in {"permission_denied", "unavailable", "quota_exhausted"}:
+        _stage(job, "video_analytics", "skipped", "Channel analytics did not succeed.")
         return
     end = timezone.localdate()
     start = end - timedelta(days=limits["analytics_days"])
@@ -966,7 +988,7 @@ def _overall(job):
         return "quota_exhausted", "failed"
     if any(status == "permission_denied" for status in statuses):
         return "permission_denied", "partial" if job.videos_upserted else "failed"
-    if any(status in {"failed", "partial"} for status in statuses):
+    if any(status in {"failed", "partial", "unavailable"} for status in statuses):
         return "partial", "partial" if job.videos_upserted or _stage_ok(job, "channel") else "failed"
     return "success", "completed"
 

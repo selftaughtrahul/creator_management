@@ -488,6 +488,16 @@ class YouTubeClientTests(TestCase):
         self.assertEqual(raised.exception.kind, "quota")
         slept.assert_not_called()
 
+    def test_disabled_analytics_api_is_not_a_missing_scope(self):
+        from networks.youtube.client import classify_error
+
+        error = classify_error(
+            403,
+            {"error": {"message": "Access Not Configured.", "errors": [{"reason": "accessNotConfigured"}]}},
+        )
+        self.assertEqual(error.kind, "not_configured")
+        self.assertEqual(error.reason, "accessNotConfigured")
+
 
 @override_settings(YOUTUBE_SYNC_EAGER=False)
 class YouTubeApiTests(TestCase):

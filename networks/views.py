@@ -248,16 +248,21 @@ def load_sample(request, platform):
     return redirect("analytics:platform", platform=platform)
 
 
-def _queue_youtube(request, account, mode):
-    from networks.youtube.jobs import enqueue_youtube_sync, maybe_run
+def _queue_youtube(request, account, mode, *, run=False):
+    from networks.youtube.jobs import enqueue_youtube_sync, maybe_run, process_youtube_job
 
     job = enqueue_youtube_sync(account, mode=mode, requested_by=request.user)
-    if settings.YOUTUBE_SYNC_EAGER:
-        maybe_run(job)
+    if run or settings.YOUTUBE_SYNC_EAGER:
+        if run:
+            process_youtube_job(job)
+        else:
+            maybe_run(job)
         if job.status == "completed":
             messages.success(request, "YouTube sync finished.")
         elif job.status == "partial":
             messages.warning(request, job.last_error or "YouTube sync finished with some sections skipped.")
+        elif job.status == "pending":
+            messages.info(request, "YouTube sync is still running. Refresh the YouTube page in a moment.")
         else:
             messages.error(request, job.last_error or "YouTube sync failed.")
         return True
@@ -272,8 +277,8 @@ def sync(request, platform):
     account = get_object_or_404(SocialAccount, user=request.user, platform=platform)
     if platform == "youtube" and not account.is_sample:
         mode = "full" if request.POST.get("mode") == "full" else "incremental"
-        if _queue_youtube(request, account, mode):
-            return redirect("networks:connections")
+        _queue_youtube(request, account, mode, run=True)
+        return redirect("analytics:platform", platform="youtube")
     try:
         sync_account(account)
     except ProviderError as exc:

@@ -77,6 +77,8 @@ def classify_error(status, payload):
         kind = "unavailable"
     elif status in RETRYABLE_STATUS:
         kind = "retryable"
+    elif reason == "accessNotConfigured":
+        kind = "not_configured"
     elif status == 400:
         kind = "unsupported"
     elif status in {401, 403}:
