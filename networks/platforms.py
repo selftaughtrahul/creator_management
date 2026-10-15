@@ -13,7 +13,7 @@ PLATFORMS = {
         "icon": "bi-facebook",
         "color": "#1877f2",
         "audience_label": "Followers",
-        "blurb": "Page followers and recent posts from a Facebook Page you manage.",
+        "blurb": "Page followers, Page likes, posts, comments, and insights from a Facebook Page you manage.",
     },
     "youtube": {
         "label": "YouTube",

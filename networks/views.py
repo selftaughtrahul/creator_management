@@ -241,6 +241,26 @@ def oauth_callback(request, platform):
                 )
             return _leave_callback(request, saved, "analytics:platform", kwargs={"platform": platform})
         messages.info(request, "A full Instagram sync is queued. Run process_instagram_jobs to finish it.")
+    if platform == "facebook":
+        from networks.facebook.jobs import enqueue_facebook_sync, maybe_run as run_facebook
+
+        job = enqueue_facebook_sync(
+            account,
+            mode="full",
+            requested_by=user,
+            scopes=token.get("scope") or "",
+        )
+        if settings.FACEBOOK_SYNC_EAGER:
+            run_facebook(job)
+            if job.status in {"completed", "partial"}:
+                messages.success(request, f"{label} is connected and the Facebook sync is saved.")
+            else:
+                messages.error(
+                    request,
+                    f"{label} is connected, but the sync did not finish. {job.last_error}",
+                )
+            return _leave_callback(request, saved, "analytics:platform", kwargs={"platform": platform})
+        messages.info(request, "A full Facebook sync is queued. Run process_facebook_jobs to finish it.")
     try:
         sync_account(account)
     except ProviderError as exc:
@@ -312,6 +332,28 @@ def _queue_instagram(request, account, mode, *, run=False):
     return False
 
 
+def _queue_facebook(request, account, mode, *, run=False):
+    from networks.facebook.jobs import enqueue_facebook_sync, maybe_run, process_facebook_job
+
+    job = enqueue_facebook_sync(account, mode=mode, requested_by=request.user)
+    if run or settings.FACEBOOK_SYNC_EAGER:
+        if run:
+            process_facebook_job(job)
+        else:
+            maybe_run(job)
+        if job.status == "completed":
+            messages.success(request, "Facebook sync finished.")
+        elif job.status == "partial":
+            messages.warning(request, job.last_error or "Facebook sync finished with some sections skipped.")
+        elif job.status == "pending":
+            messages.info(request, "Facebook sync is still running. Refresh the Facebook page in a moment.")
+        else:
+            messages.error(request, job.last_error or "Facebook sync failed.")
+        return True
+    messages.success(request, "Facebook sync is queued. Run process_facebook_jobs to finish it.")
+    return False
+
+
 @creator_required
 @require_POST
 def sync(request, platform):
@@ -325,6 +367,10 @@ def sync(request, platform):
         mode = "full" if request.POST.get("mode") == "full" else "incremental"
         _queue_instagram(request, account, mode, run=True)
         return redirect("analytics:platform", platform="instagram")
+    if platform == "facebook" and not account.is_sample:
+        mode = "full" if request.POST.get("mode") == "full" else "incremental"
+        _queue_facebook(request, account, mode, run=True)
+        return redirect("analytics:platform", platform="facebook")
     try:
         sync_account(account)
     except ProviderError as exc:
@@ -350,6 +396,10 @@ def sync_all(request):
                     sync_account(account)
             elif account.platform == "instagram" and not account.is_sample:
                 queued_only = not _queue_instagram(request, account, "incremental")
+                if queued_only:
+                    sync_account(account)
+            elif account.platform == "facebook" and not account.is_sample:
+                queued_only = not _queue_facebook(request, account, "incremental")
                 if queued_only:
                     sync_account(account)
             else:

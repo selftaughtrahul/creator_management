@@ -221,3 +221,4 @@ class SampleConnectionTests(TestCase):
 
 from networks.youtube_tests import YouTubeApiTests, YouTubeClientTests, YouTubeSyncTests  # noqa: E402,F401
 from networks.instagram_tests import InstagramClientTests, InstagramSyncTests  # noqa: E402,F401
+from networks.facebook_tests import FacebookClientTests, FacebookSyncTests  # noqa: E402,F401

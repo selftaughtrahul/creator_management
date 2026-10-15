@@ -1,0 +1,114 @@
+{% load humanize %}
+<section class="panel">
+  <h2>Facebook library</h2>
+  <p class="muted">Followers and Page likes are separate totals. Insight views are media views. Older impression metrics are used only when Facebook rejects the current metric name. Photos and videos stay on Facebook.</p>
+  {% if facebook.job %}
+    <p class="muted">
+      Latest sync: {{ facebook.job.get_mode_display|lower }}, {{ facebook.job.get_status_display|lower }}
+      {% if facebook.job.outcome %}· {{ facebook.job.get_outcome_display }}{% endif %}
+      {% if facebook.job.finished_at %}· {{ facebook.job.finished_at|naturaltime }}{% endif %}
+      · {{ facebook.job.pages_seen }} pages · {{ facebook.job.posts_upserted }} posts · {{ facebook.job.api_calls }} API calls
+    </p>
+    {% if facebook.job.last_error %}<p class="error-text">{{ facebook.job.last_error }}</p>{% endif %}
+  {% endif %}
+</section>
+{% for item in facebook.pages %}
+  <section class="panel">
+    <h2>{{ item.name|default:item.page_id }}{% if item.is_primary %} · primary{% endif %}</h2>
+    <p class="muted">
+      {{ item.page_id }}
+      {% if item.username %}· @{{ item.username }}{% endif %}
+      {% if item.category %}· {{ item.category }}{% endif %}
+    </p>
+    {% if item.about %}<p>{{ item.about }}</p>{% endif %}
+    <p class="muted">Sync {{ item.get_sync_status_display|lower }}{% if item.last_success_at %} · last success {{ item.last_success_at|naturaltime }}{% endif %}</p>
+    {% if item.reauthorization_required %}
+      <p class="error-text">Facebook needs to be connected again before Page insights can be read. Include pages_read_engagement in the login configuration.</p>
+    {% endif %}
+    {% if item.last_error %}<p class="error-text">{{ item.last_error }}</p>{% endif %}
+  </section>
+{% endfor %}
+{% with page=facebook.primary %}
+  <section class="stat-grid">
+    <article class="stat"><span class="label">Followers</span><strong>{% if page.followers_count == None %}—{% else %}{{ page.followers_count|intcomma }}{% endif %}</strong><em>Page follows</em></article>
+    <article class="stat"><span class="label">Page likes</span><strong>{% if page.fan_count == None %}—{% else %}{{ page.fan_count|intcomma }}{% endif %}</strong><em>fan_count, not followers</em></article>
+    <article class="stat"><span class="label">Follower change</span><strong>{% if facebook.delta and facebook.delta.followers != None %}{{ facebook.delta.followers|intcomma }}{% else %}—{% endif %}</strong><em>Change since the previous saved total{% if facebook.delta and facebook.delta.counter_reset %}; the total dropped, so the change is blank{% endif %}</em></article>
+    <article class="stat"><span class="label">Posts</span><strong>{{ page.posts_last_30_days|default:"—" }}</strong><em>Synced posts in 30 days</em></article>
+  </section>
+  <section class="stat-grid">
+    <article class="stat"><span class="label">Reactions</span><strong>{% if page.summed_reactions == None %}—{% else %}{{ page.summed_reactions|intcomma }}{% endif %}</strong><em>{% if page.hidden_reaction_count %}{{ page.hidden_reaction_count }} posts did not return reactions{% else %}Posts that returned a reaction count{% endif %}</em></article>
+    <article class="stat"><span class="label">Comments</span><strong>{% if page.summed_comments == None %}—{% else %}{{ page.summed_comments|intcomma }}{% endif %}</strong></article>
+    <article class="stat"><span class="label">Shares</span><strong>{% if page.summed_shares == None %}—{% else %}{{ page.summed_shares|intcomma }}{% endif %}</strong></article>
+    <article class="stat"><span class="label">Post views</span><strong>{% if page.summed_views == None %}—{% else %}{{ page.summed_views|intcomma }}{% endif %}</strong><em>Sum of post media views, not the Page total</em></article>
+  </section>
+  {% if facebook.daily %}
+    <section class="panel">
+      <h2>Daily insights</h2>
+      <p class="muted">page_follows is the follower total that day. New follows are page_daily_follows_unique. Views are page_media_view.</p>
+      <table class="data">
+        <thead>
+          <tr><th>Date</th><th>Followers</th><th>New follows</th><th>Unfollows</th><th>Views</th><th>Reach</th></tr>
+        </thead>
+        <tbody>
+          {% for row in facebook.daily %}
+            <tr>
+              <td>{{ row.snapshot_date|date:"d M Y" }}</td>
+              <td>{% if row.followers == None %}—{% else %}{{ row.followers|intcomma }}{% endif %}</td>
+              <td>{% if row.followers_gained == None %}—{% else %}{{ row.followers_gained|intcomma }}{% endif %}</td>
+              <td>{% if row.followers_lost == None %}—{% else %}{{ row.followers_lost|intcomma }}{% endif %}</td>
+              <td>{% if row.views == None %}—{% else %}{{ row.views|intcomma }}{% endif %}</td>
+              <td>{% if row.reach == None %}—{% else %}{{ row.reach|intcomma }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  {% endif %}
+  {% if facebook.demographics %}
+    <section class="panel">
+      <h2>Audience</h2>
+      <table class="data">
+        <thead><tr><th>Breakdown</th><th>Segment</th><th>Count</th></tr></thead>
+        <tbody>
+          {% for row in facebook.demographics %}
+            <tr>
+              <td>{{ row.dimension }}</td>
+              <td>{{ row.segment }}</td>
+              <td>{% if row.value == None %}—{% else %}{{ row.value|floatformat:0|intcomma }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  {% endif %}
+  <section class="panel">
+    <h2>Posts</h2>
+    <table class="data">
+      <thead>
+        <tr><th>Post</th><th>Type</th><th>Reactions</th><th>Comments</th><th>Shares</th><th>Views</th></tr>
+      </thead>
+      <tbody>
+        {% for post in facebook.page %}
+          <tr>
+            <td>
+              {% if post.studio_url %}
+                <a href="{{ post.studio_url }}">{{ post.message|truncatechars:80|default:post.post_id }}</a>
+              {% elif post.permalink %}
+                <a href="{{ post.permalink }}" rel="noreferrer">{{ post.message|truncatechars:80|default:post.post_id }}</a>
+              {% else %}
+                {{ post.message|truncatechars:80|default:post.post_id }}
+              {% endif %}
+            </td>
+            <td>{{ post.status_type|default:"post" }}</td>
+            <td>{% if post.reaction_count == None %}Hidden{% else %}{{ post.reaction_count|intcomma }}{% endif %}</td>
+            <td>{% if post.comment_count == None %}—{% else %}{{ post.comment_count|intcomma }}{% endif %}</td>
+            <td>{% if post.share_count == None %}—{% else %}{{ post.share_count|intcomma }}{% endif %}</td>
+            <td>{% if post.views == None %}—{% else %}{{ post.views|intcomma }}{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">No posts stored yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endwith %}

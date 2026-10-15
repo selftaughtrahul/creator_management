@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from networks.models import AudienceBreakdown, ContentItem, MetricSnapshot, SocialAccount
+from networks.facebook_models import FacebookPage, FacebookPost, FacebookSyncJob
 from networks.instagram_models import InstagramMedia, InstagramProfile, InstagramSyncJob
 from networks.youtube_models import (
     YouTubeChannel,
@@ -108,4 +109,23 @@ class InstagramMediaAdmin(admin.ModelAdmin):
 @admin.register(InstagramSyncJob)
 class InstagramSyncJobAdmin(admin.ModelAdmin):
     list_display = ("id", "account", "mode", "status", "outcome", "media_upserted", "created_at")
+    list_filter = ("status", "outcome", "mode")
+
+
+@admin.register(FacebookPage)
+class FacebookPageAdmin(admin.ModelAdmin):
+    list_display = ("name", "page_id", "account", "is_primary", "sync_status", "followers_count", "fan_count")
+    search_fields = ("name", "username", "page_id")
+    list_filter = ("sync_status", "is_primary", "reauthorization_required")
+
+
+@admin.register(FacebookPost)
+class FacebookPostAdmin(admin.ModelAdmin):
+    list_display = ("post_id", "page", "status_type", "reaction_count", "views", "published_at")
+    search_fields = ("post_id", "message")
+
+
+@admin.register(FacebookSyncJob)
+class FacebookSyncJobAdmin(admin.ModelAdmin):
+    list_display = ("id", "account", "mode", "status", "outcome", "posts_upserted", "created_at")
     list_filter = ("status", "outcome", "mode")

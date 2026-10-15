@@ -12,6 +12,7 @@ from networks.models import SocialAccount
 from networks.sync import sync_account
 from networks.youtube.client import YouTubeAPIError
 from networks.instagram.client import InstagramAPIError
+from networks.facebook.client import FacebookAPIError
 
 logger = logging.getLogger("creators.jobs")
 
@@ -103,6 +104,10 @@ def process_job(job):
             from networks.instagram.jobs import run_for_account as run_instagram
 
             run_instagram(account, mode="incremental", requested_by=job.requested_by)
+        elif account.platform == "facebook":
+            from networks.facebook.jobs import run_for_account as run_facebook
+
+            run_facebook(account, mode="incremental", requested_by=job.requested_by)
         else:
             sync_account(account)
     except YouTubeAPIError as exc:
@@ -112,6 +117,10 @@ def process_job(job):
             return _finish(job, EnrichmentJob.Status.BLOCKED, str(exc))
         return _retry_or_fail(job, str(exc))
     except InstagramAPIError as exc:
+        if exc.kind in {"permission", "permanent", "token"}:
+            return _finish(job, EnrichmentJob.Status.FAILED, str(exc))
+        return _retry_or_fail(job, str(exc))
+    except FacebookAPIError as exc:
         if exc.kind in {"permission", "permanent", "token"}:
             return _finish(job, EnrichmentJob.Status.FAILED, str(exc))
         return _retry_or_fail(job, str(exc))

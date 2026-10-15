@@ -1,0 +1,33 @@
+{% load humanize %}
+<section class="panel">
+  <h2>Facebook post</h2>
+  <p class="muted">
+    {{ facebook.page.name }} · {{ facebook.post.post_id }}
+    {% if facebook.post.status_type %}· {{ facebook.post.status_type }}{% endif %}
+    {% if facebook.post.comments_sync_status %}· comments {{ facebook.post.comments_sync_status }}{% endif %}
+  </p>
+  {% if facebook.post.comments_sync_error %}<p class="error-text">{{ facebook.post.comments_sync_error }}</p>{% endif %}
+  <div class="stat-grid">
+    <article class="stat"><span class="label">Reactions</span><strong>{% if facebook.post.reaction_count == None %}Hidden{% else %}{{ facebook.post.reaction_count|intcomma }}{% endif %}</strong></article>
+    <article class="stat"><span class="label">Likes</span><strong>{% if facebook.post.like_count == None %}—{% else %}{{ facebook.post.like_count|intcomma }}{% endif %}</strong><em>Likes only, separate from all reactions</em></article>
+    <article class="stat"><span class="label">Views</span><strong>{% if facebook.post.views == None %}—{% else %}{{ facebook.post.views|intcomma }}{% endif %}</strong></article>
+    <article class="stat"><span class="label">Reach</span><strong>{% if facebook.post.reach == None %}—{% else %}{{ facebook.post.reach|intcomma }}{% endif %}</strong></article>
+  </div>
+</section>
+{% if facebook.comments %}
+  <section class="panel">
+    <h2>Comments</h2>
+    <table class="data">
+      <thead><tr><th>Author</th><th>Comment</th><th>Likes</th></tr></thead>
+      <tbody>
+        {% for comment in facebook.comments %}
+          <tr>
+            <td>{% if comment.is_reply %}Reply · {% endif %}{{ comment.author_name|default:"—" }}</td>
+            <td>{{ comment.message }}</td>
+            <td>{% if comment.like_count == None %}—{% else %}{{ comment.like_count|intcomma }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}

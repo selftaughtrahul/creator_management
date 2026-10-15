@@ -7,6 +7,8 @@ from analytics.services import build_content, build_dashboard, build_platform
 from networks.models import ContentItem, SocialAccount
 from networks.platforms import PLATFORMS
 from networks.views import consume_oauth_notices
+from networks.facebook.present import platform_context as facebook_platform_context
+from networks.facebook.present import post_context as facebook_post_context
 from networks.instagram.present import media_context as instagram_media_context
 from networks.instagram.present import platform_context as instagram_platform_context
 from networks.youtube.present import platform_context, video_context
@@ -31,6 +33,8 @@ def platform(request, platform):
             context["youtube"] = platform_context(account, request.GET.get("yt_page"))
         if platform == "instagram":
             context["instagram"] = instagram_platform_context(account, request.GET.get("ig_page"))
+        if platform == "facebook":
+            context["facebook"] = facebook_platform_context(account, request.GET.get("fb_page"))
     return render(request, "app/platform.html", context)
 
 
@@ -46,4 +50,6 @@ def content(request, pk):
         context["youtube"] = video_context(item)
     if item.account.platform == "instagram":
         context["instagram"] = instagram_media_context(item)
+    if item.account.platform == "facebook":
+        context["facebook"] = facebook_post_context(item)
     return render(request, "app/content.html", context)

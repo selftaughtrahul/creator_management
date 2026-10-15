@@ -37,11 +37,15 @@ Refresh everything from the command line with:
 .\.venv\Scripts\python manage.py process_youtube_jobs --full
 .\.venv\Scripts\python manage.py process_instagram_jobs
 .\.venv\Scripts\python manage.py process_instagram_jobs --full
+.\.venv\Scripts\python manage.py process_facebook_jobs
+.\.venv\Scripts\python manage.py process_facebook_jobs --full
 ```
 
 YouTube sync reads the Data API (channel, uploads, video statistics, comments, caption tracks) and, when the connected channel granted analytics scopes, the Analytics API. Official channel view count and the sum of video views are stored separately. Caption download needs `youtube.force-ssl`. Revenue needs `yt-analytics-monetary.readonly` and a monetized channel; a missing permission leaves revenue empty. The sync does not download video files.
 
 Instagram sync reads the professional profile, paginated media, and comments from `graph.instagram.com`. Account insights (`reach`, `follower_count`, and `total_value` metrics such as `views` and `accounts_engaged`) and per-post insights are requested when the insights scope was granted. `follower_count` on Insights is new followers for that day; the lifetime total stays on the profile. A metric Instagram rejects is skipped. The sync stores permalinks and thumbnail URLs and does not download media files. Reconnect Instagram after this change so the new scopes are granted.
+
+Facebook sync reads every Page on the connected user, then each Page's posts and comments from `graph.facebook.com`. Follower totals and Page likes stay in separate fields. Daily insights use the current Page metrics (`page_follows`, `page_daily_follows_unique`, `page_media_view`, and the unique media-view metric). If Facebook rejects one of those names, the older impression or fan metric is requested for that name only. The login configuration in `META_LOGIN_CONFIG_ID` needs `pages_show_list`, `pages_read_engagement`, and `pages_read_user_content`. The sync does not download photos or videos.
 
 Data API calls spend quota. Listing and video details are 1 unit per request (videos are batched 50 at a time). `captions.list` is 50 units and `captions.download` is 200, so transcript limits stay low. A default project quota is 10,000 units per day. Analytics reports use a separate quota. Set `YOUTUBE_SYNC_EAGER=0` and let `process_youtube_jobs` do the work so a large channel does not run inside the browser request.
 

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from networks import views
+from networks.facebook import api as facebook_api
 from networks.instagram import api as instagram_api
 from networks.youtube import api as youtube_api
 
@@ -25,6 +26,14 @@ urlpatterns = [
     path("api/instagram/insights/", instagram_api.insights, name="instagram_insights"),
     path("api/instagram/sync/", instagram_api.sync_now, name="instagram_sync"),
     path("api/instagram/sync-jobs/<int:job_id>/", instagram_api.sync_job_detail, name="instagram_job"),
+    path("api/facebook/pages/", facebook_api.page_list, name="facebook_pages"),
+    path("api/facebook/pages/<str:page_id>/", facebook_api.page_detail, name="facebook_page"),
+    path("api/facebook/pages/<str:page_id>/posts/", facebook_api.page_posts, name="facebook_posts"),
+    path("api/facebook/pages/<str:page_id>/insights/", facebook_api.page_insights, name="facebook_insights"),
+    path("api/facebook/posts/<str:post_id>/", facebook_api.post_detail, name="facebook_post"),
+    path("api/facebook/posts/<str:post_id>/comments/", facebook_api.post_comments, name="facebook_comments"),
+    path("api/facebook/sync/", facebook_api.sync_now, name="facebook_sync"),
+    path("api/facebook/sync-jobs/<int:job_id>/", facebook_api.sync_job_detail, name="facebook_job"),
     path("connections/", views.connections, name="connections"),
     path("connections/sync/", views.sync_all, name="sync_all"),
     path("connections/<slug:platform>/start/", views.start_oauth, name="start"),

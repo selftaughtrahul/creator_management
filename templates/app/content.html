@@ -26,6 +26,10 @@
     {% include "partials/instagram_media.html" %}
     <p class="muted">The cards above are the Instagram sync. A hidden like count stays blank there. The studio charts below still use 0 when a count was missing.</p>
   {% endif %}
+  {% if facebook %}
+    {% include "partials/facebook_post.html" %}
+    <p class="muted">The cards above are the Facebook sync. A missing reaction count stays blank there. The studio charts below still use 0 when a count was missing.</p>
+  {% endif %}
   <section class="stat-grid">
     <article class="stat"><span class="label">Views</span><strong>{{ item.views|intcomma }}</strong><em>{{ share }}% of saved {{ meta.label }} views</em></article>
     <article class="stat"><span class="label">Likes</span><strong>{{ item.likes|intcomma }}</strong></article>

@@ -182,3 +182,11 @@ from networks.instagram_models import (  # noqa: E402,F401
     InstagramSnapshot,
     InstagramSyncJob,
 )
+from networks.facebook_models import (  # noqa: E402,F401
+    FacebookComment,
+    FacebookInsightBreakdown,
+    FacebookPage,
+    FacebookPost,
+    FacebookSnapshot,
+    FacebookSyncJob,
+)
