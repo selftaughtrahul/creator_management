@@ -61,12 +61,13 @@ def sync_facebook(account, job):
         calls += 0
         listed = user_client.paged("me/accounts", {"fields": ACCOUNT_FIELDS}, _setting("FACEBOOK_MAX_PAGES", 25))
         calls += user_client.calls
-        job.pages_seen = len(listed)
         if not listed:
             raise FacebookAPIError(
                 "No Facebook Page was found. Connect a Page you manage. Personal profiles do not share these insights.",
                 kind="permanent",
             )
+        listed = _connected_rows(account, listed, notes)
+        job.pages_seen = len(listed)
         stages["pages"] = {"status": "success", "count": len(listed)}
         for row in listed:
             page_token = row.get("access_token") or ""
@@ -86,6 +87,7 @@ def sync_facebook(account, job):
         for page in pages:
             page.is_primary = page.pk == primary.pk
         FacebookPage.objects.bulk_update(pages, ["is_primary"])
+        _drop_other_pages(account, pages)
         _mirror_account(account, primary, len(pages))
     except FacebookAPIError as exc:
         stages["pages"] = stages.get("pages") or _stage(exc)
@@ -96,6 +98,40 @@ def sync_facebook(account, job):
         notes.append(str(exc)[:500])
         logger.exception("facebook_sync_unexpected account_id=%s", account.pk)
     return _finish(job, stages, notes, pages, calls, job_model=FacebookSyncJob)
+
+
+def _connected_rows(account, listed, notes):
+    """Sync only the Page this connection already stores.
+
+    A first sync, before a Page id is saved, keeps the same single Page the
+    light sync would connect: the one with the most followers.
+    """
+    connected = (account.external_id or "").strip()
+    if connected.startswith("sample"):
+        connected = ""
+    if connected:
+        chosen = [row for row in listed if str(row.get("id") or "") == connected]
+        if not chosen:
+            raise FacebookAPIError(
+                "The connected Facebook Page was not returned for this login. Connect that Page again.",
+                kind="permanent",
+            )
+        skipped = [str(row.get("id") or "") for row in listed if str(row.get("id") or "") != connected]
+        if skipped:
+            notes.append("Skipped Pages that are not connected: " + ", ".join(skipped) + ".")
+            logger.info("facebook_sync_skipped_pages account_id=%s pages=%s", account.pk, ",".join(skipped))
+        return chosen
+    chosen = max(listed, key=lambda row: as_optional_int(row.get("followers_count") or row.get("fan_count")) or 0)
+    return [chosen]
+
+
+def _drop_other_pages(account, pages):
+    kept = {page.page_id for page in pages}
+    stale = FacebookPage.objects.filter(account=account).exclude(page_id__in=kept)
+    stale_post_ids = list(FacebookPost.objects.filter(page__in=stale).values_list("post_id", flat=True))
+    if stale_post_ids:
+        ContentItem.objects.filter(account=account, external_id__in=stale_post_ids).delete()
+    stale.delete()
 
 
 def _sync_page(account, job, client, row, stages, notes):

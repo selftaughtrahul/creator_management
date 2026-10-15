@@ -14,7 +14,7 @@ from networks.facebook.client import FacebookAPIError, FacebookClient, classify_
 from networks.facebook.snapshots import save_snapshot
 from networks.facebook.sync import sync_facebook
 from networks.facebook_models import FacebookComment, FacebookPage, FacebookPost, FacebookSnapshot, FacebookSyncJob
-from networks.models import SocialAccount
+from networks.models import ContentItem, SocialAccount
 
 User = get_user_model()
 SCOPES = "pages_show_list pages_read_engagement pages_read_user_content public_profile"
@@ -202,12 +202,12 @@ class FacebookSyncTests(TestCase):
     def test_full_sync_stores_pages_posts_comments_and_insights(self):
         job = self._run(FakeFacebook("user-token"))
         self.assertEqual(job.status, FacebookSyncJob.Status.COMPLETED, (job.stages, job.last_error))
-        self.assertEqual(FacebookPage.objects.count(), 2)
+        self.assertEqual(FacebookPage.objects.count(), 1)
         primary = FacebookPage.objects.get(page_id="111")
         self.assertTrue(primary.is_primary)
         self.assertEqual(primary.followers_count, 80)
         self.assertEqual(primary.fan_count, 75)
-        self.assertFalse(FacebookPage.objects.get(page_id="222").is_primary)
+        self.assertFalse(FacebookPage.objects.filter(page_id="222").exists())
         hidden = FacebookPost.objects.get(post_id="111_2")
         self.assertIsNone(hidden.reaction_count)
         shown = FacebookPost.objects.get(post_id="111_1")
@@ -231,6 +231,17 @@ class FacebookSyncTests(TestCase):
         self.assertContains(page, "Hidden")
         detail = self.client.get(shown.page.account.contents.get(external_id="111_2").get_absolute_url())
         self.assertContains(detail, "Facebook post")
+
+    def test_full_sync_refreshes_only_the_connected_page(self):
+        self.account.external_id = "222"
+        self.account.save(update_fields=["external_id"])
+        FacebookPage.objects.create(account=self.account, page_id="111", name="Northline", followers_count=80)
+        FacebookPost.objects.create(page=FacebookPage.objects.get(page_id="111"), post_id="111_9", message="Old")
+        ContentItem.objects.create(account=self.account, external_id="111_9", title="Old")
+        job = self._run(FakeFacebook("user-token"))
+        self.assertEqual(job.status, FacebookSyncJob.Status.COMPLETED, (job.stages, job.last_error))
+        self.assertEqual(list(FacebookPage.objects.values_list("page_id", flat=True)), ["222"])
+        self.assertFalse(ContentItem.objects.filter(external_id="111_9").exists())
 
     def test_missing_page_fails(self):
         job = self._run(FakeFacebook("user-token", empty=True))

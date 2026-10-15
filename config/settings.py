@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -227,6 +228,12 @@ elif DEBUG:
     EMAIL_BACKEND = "accounts.mail.DatabaseEmailBackend"
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# Shown only in local DEBUG, and never while running the test suite.
+if DEBUG and "test" not in sys.argv:
+    INSTALLED_APPS += ["debug_toolbar"]
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+    INTERNAL_IPS = ["127.0.0.1"]
 
 LOGGING = {
     "version": 1,
