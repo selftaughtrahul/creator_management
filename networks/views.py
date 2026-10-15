@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.permissions import creator_required, is_creator
+from networks.background import run_in_background
 from networks.demo import connect_sample
 from networks.http import ProviderError
 from networks.models import SocialAccount
@@ -201,74 +202,16 @@ def oauth_callback(request, platform):
         account.token_expires_at = timezone.now() + timedelta(seconds=int(expires_in))
     account.last_error = ""
     account.save()
-    if platform == "youtube":
-        from networks.youtube.jobs import enqueue_youtube_sync, maybe_run
-
-        job = enqueue_youtube_sync(
-            account,
-            mode="full",
-            requested_by=user,
-            scopes=token.get("scope") or "",
-        )
-        if settings.YOUTUBE_SYNC_EAGER:
-            maybe_run(job)
-            if job.status in {"completed", "partial"}:
-                messages.success(request, f"{label} is connected and the YouTube sync is saved.")
-            else:
-                messages.error(
-                    request,
-                    f"{label} is connected, but the sync did not finish. {job.last_error}",
-                )
-            return _leave_callback(request, saved, "analytics:platform", kwargs={"platform": platform})
-        messages.info(request, "A full YouTube sync is queued. Run process_youtube_jobs to finish it.")
-    if platform == "instagram":
-        from networks.instagram.jobs import enqueue_instagram_sync, maybe_run as run_instagram
-
-        job = enqueue_instagram_sync(
-            account,
-            mode="full",
-            requested_by=user,
-            scopes=token.get("scope") or "",
-        )
-        if settings.INSTAGRAM_SYNC_EAGER:
-            run_instagram(job)
-            if job.status in {"completed", "partial"}:
-                messages.success(request, f"{label} is connected and the Instagram sync is saved.")
-            else:
-                messages.error(
-                    request,
-                    f"{label} is connected, but the sync did not finish. {job.last_error}",
-                )
-            return _leave_callback(request, saved, "analytics:platform", kwargs={"platform": platform})
-        messages.info(request, "A full Instagram sync is queued. Run process_instagram_jobs to finish it.")
-    if platform == "facebook":
-        from networks.facebook.jobs import enqueue_facebook_sync, maybe_run as run_facebook
-
-        job = enqueue_facebook_sync(
-            account,
-            mode="full",
-            requested_by=user,
-            scopes=token.get("scope") or "",
-        )
-        if settings.FACEBOOK_SYNC_EAGER:
-            run_facebook(job)
-            if job.status in {"completed", "partial"}:
-                messages.success(request, f"{label} is connected and the Facebook sync is saved.")
-            else:
-                messages.error(
-                    request,
-                    f"{label} is connected, but the sync did not finish. {job.last_error}",
-                )
-            return _leave_callback(request, saved, "analytics:platform", kwargs={"platform": platform})
-        messages.info(request, "A full Facebook sync is queued. Run process_facebook_jobs to finish it.")
-    try:
-        sync_account(account)
-    except ProviderError as exc:
-        account.last_error = str(exc)
-        account.save(update_fields=["last_error"])
-        messages.error(request, f"{label} is connected, but the first sync failed: {exc}")
-        return _leave_callback(request, saved, "networks:connections")
-    messages.success(request, f"{label} is connected and the latest data is saved.")
+    if platform in {"youtube", "instagram", "facebook"}:
+        _start_deep_sync(account, user, "full", scopes=token.get("scope") or "")
+        messages.info(request, f"{label} is connected. The sync is running. Refresh this page in a moment.")
+        return _leave_callback(request, saved, "analytics:platform", kwargs={"platform": platform})
+    account_id = account.pk
+    run_in_background(
+        f"sync:{account_id}",
+        lambda: sync_account(SocialAccount.objects.get(pk=account_id)),
+    )
+    messages.info(request, f"{label} is connected. The sync is running. Refresh this page in a moment.")
     return _leave_callback(request, saved, "analytics:platform", kwargs={"platform": platform})
 
 
@@ -288,70 +231,55 @@ def load_sample(request, platform):
     return redirect("analytics:platform", platform=platform)
 
 
-def _queue_youtube(request, account, mode, *, run=False):
-    from networks.youtube.jobs import enqueue_youtube_sync, maybe_run, process_youtube_job
+def _start_deep_sync(account, requested_by, mode, scopes=""):
+    if account.platform == "youtube":
+        from networks.youtube.jobs import enqueue_youtube_sync, process_youtube_job
+        from networks.youtube_models import YouTubeSyncJob
 
-    job = enqueue_youtube_sync(account, mode=mode, requested_by=request.user)
-    if run or settings.YOUTUBE_SYNC_EAGER:
-        if run:
-            process_youtube_job(job)
-        else:
-            maybe_run(job)
-        if job.status == "completed":
-            messages.success(request, "YouTube sync finished.")
-        elif job.status == "partial":
-            messages.warning(request, job.last_error or "YouTube sync finished with some sections skipped.")
-        elif job.status == "pending":
-            messages.info(request, "YouTube sync is still running. Refresh the YouTube page in a moment.")
-        else:
-            messages.error(request, job.last_error or "YouTube sync failed.")
-        return True
-    messages.success(request, "YouTube sync is queued. Run process_youtube_jobs to finish it.")
-    return False
+        job = enqueue_youtube_sync(account, mode=mode, requested_by=requested_by, scopes=scopes)
+        model = YouTubeSyncJob
+        process = process_youtube_job
+    elif account.platform == "instagram":
+        from networks.instagram.jobs import enqueue_instagram_sync, process_instagram_job
+        from networks.instagram_models import InstagramSyncJob
 
+        job = enqueue_instagram_sync(account, mode=mode, requested_by=requested_by, scopes=scopes)
+        model = InstagramSyncJob
+        process = process_instagram_job
+    elif account.platform == "facebook":
+        from networks.facebook.jobs import enqueue_facebook_sync, process_facebook_job
+        from networks.facebook_models import FacebookSyncJob
 
-def _queue_instagram(request, account, mode, *, run=False):
-    from networks.instagram.jobs import enqueue_instagram_sync, maybe_run, process_instagram_job
+        job = enqueue_facebook_sync(account, mode=mode, requested_by=requested_by, scopes=scopes)
+        model = FacebookSyncJob
+        process = process_facebook_job
+    else:
+        return None
+    job_id = job.pk
 
-    job = enqueue_instagram_sync(account, mode=mode, requested_by=request.user)
-    if run or settings.INSTAGRAM_SYNC_EAGER:
-        if run:
-            process_instagram_job(job)
-        else:
-            maybe_run(job)
-        if job.status == "completed":
-            messages.success(request, "Instagram sync finished.")
-        elif job.status == "partial":
-            messages.warning(request, job.last_error or "Instagram sync finished with some sections skipped.")
-        elif job.status == "pending":
-            messages.info(request, "Instagram sync is still running. Refresh the Instagram page in a moment.")
-        else:
-            messages.error(request, job.last_error or "Instagram sync failed.")
-        return True
-    messages.success(request, "Instagram sync is queued. Run process_instagram_jobs to finish it.")
-    return False
+    def work():
+        process(model.objects.get(pk=job_id))
+
+    run_in_background(f"{account.platform}:{account.pk}", work)
+    return job
 
 
-def _queue_facebook(request, account, mode, *, run=False):
-    from networks.facebook.jobs import enqueue_facebook_sync, maybe_run, process_facebook_job
+def _queue_youtube(request, account, mode):
+    _start_deep_sync(account, request.user, mode)
+    messages.info(request, "YouTube sync is running. Refresh this page in a moment.")
+    return True
 
-    job = enqueue_facebook_sync(account, mode=mode, requested_by=request.user)
-    if run or settings.FACEBOOK_SYNC_EAGER:
-        if run:
-            process_facebook_job(job)
-        else:
-            maybe_run(job)
-        if job.status == "completed":
-            messages.success(request, "Facebook sync finished.")
-        elif job.status == "partial":
-            messages.warning(request, job.last_error or "Facebook sync finished with some sections skipped.")
-        elif job.status == "pending":
-            messages.info(request, "Facebook sync is still running. Refresh the Facebook page in a moment.")
-        else:
-            messages.error(request, job.last_error or "Facebook sync failed.")
-        return True
-    messages.success(request, "Facebook sync is queued. Run process_facebook_jobs to finish it.")
-    return False
+
+def _queue_instagram(request, account, mode):
+    _start_deep_sync(account, request.user, mode)
+    messages.info(request, "Instagram sync is running. Refresh this page in a moment.")
+    return True
+
+
+def _queue_facebook(request, account, mode):
+    _start_deep_sync(account, request.user, mode)
+    messages.info(request, "Facebook sync is running. Refresh this page in a moment.")
+    return True
 
 
 @creator_required
@@ -361,25 +289,33 @@ def sync(request, platform):
     account = get_object_or_404(SocialAccount, user=request.user, platform=platform)
     if platform == "youtube" and not account.is_sample:
         mode = "full" if request.POST.get("mode") == "full" else "incremental"
-        _queue_youtube(request, account, mode, run=True)
+        _queue_youtube(request, account, mode)
         return redirect("analytics:platform", platform="youtube")
     if platform == "instagram" and not account.is_sample:
         mode = "full" if request.POST.get("mode") == "full" else "incremental"
-        _queue_instagram(request, account, mode, run=True)
+        _queue_instagram(request, account, mode)
         return redirect("analytics:platform", platform="instagram")
     if platform == "facebook" and not account.is_sample:
         mode = "full" if request.POST.get("mode") == "full" else "incremental"
-        _queue_facebook(request, account, mode, run=True)
+        _queue_facebook(request, account, mode)
         return redirect("analytics:platform", platform="facebook")
-    try:
-        sync_account(account)
-    except ProviderError as exc:
-        account.last_error = str(exc)
-        account.save(update_fields=["last_error"])
-        messages.error(request, str(exc))
-    else:
-        if not (platform == "youtube" and not account.is_sample):
+    if account.is_sample:
+        try:
+            sync_account(account)
+        except ProviderError as exc:
+            account.last_error = str(exc)
+            account.save(update_fields=["last_error"])
+            messages.error(request, str(exc))
+        else:
             messages.success(request, f"{PLATFORMS[platform]['label']} updated.")
+        return redirect("networks:connections")
+    account_id = account.pk
+    label = PLATFORMS[platform]["label"]
+    run_in_background(
+        f"sync:{account_id}",
+        lambda: sync_account(SocialAccount.objects.get(pk=account_id)),
+    )
+    messages.info(request, f"{label} sync is running. Refresh this page in a moment.")
     return redirect("networks:connections")
 
 
@@ -387,33 +323,29 @@ def sync(request, platform):
 @require_POST
 def sync_all(request):
     failures = []
-    synced = 0
+    started = 0
     for account in request.user.social_accounts.all():
         try:
-            if account.platform == "youtube" and not account.is_sample:
-                queued_only = not _queue_youtube(request, account, "incremental")
-                if queued_only:
-                    sync_account(account)
-            elif account.platform == "instagram" and not account.is_sample:
-                queued_only = not _queue_instagram(request, account, "incremental")
-                if queued_only:
-                    sync_account(account)
-            elif account.platform == "facebook" and not account.is_sample:
-                queued_only = not _queue_facebook(request, account, "incremental")
-                if queued_only:
-                    sync_account(account)
-            else:
+            if account.is_sample:
                 sync_account(account)
-            synced += 1
+            elif account.platform in {"youtube", "instagram", "facebook"}:
+                _start_deep_sync(account, request.user, "incremental")
+            else:
+                account_id = account.pk
+                run_in_background(
+                    f"sync:{account_id}",
+                    lambda account_id=account_id: sync_account(SocialAccount.objects.get(pk=account_id)),
+                )
+            started += 1
         except ProviderError as exc:
             account.last_error = str(exc)
             account.save(update_fields=["last_error"])
             failures.append(f"{account.get_platform_display()}: {exc}")
-    if synced:
-        messages.success(request, f"Updated {synced} connected account{'s' if synced != 1 else ''}.")
+    if started:
+        messages.info(request, "Sync is running. Refresh this page in a moment.")
     if failures:
         messages.error(request, " ".join(failures))
-    if not synced and not failures:
+    if not started and not failures:
         messages.info(request, "Connect a network before syncing.")
     return redirect("analytics:dashboard")
 

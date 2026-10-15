@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
 from accounts.permissions import is_creator
+from networks.background import run_in_background
 from networks.facebook.jobs import enqueue_facebook_sync, process_facebook_job
 from networks.facebook_models import FacebookComment, FacebookPage, FacebookPost, FacebookSnapshot, FacebookSyncJob
 
@@ -199,9 +200,13 @@ def sync_now(request):
         return JsonResponse({"error": "Connect a live Facebook Page first."}, status=400)
     mode = "full" if request.POST.get("mode") == "full" else "incremental"
     job = enqueue_facebook_sync(account, mode=mode, requested_by=request.user)
-    process_facebook_job(job)
-    status = 200 if job.status in {FacebookSyncJob.Status.COMPLETED, FacebookSyncJob.Status.PARTIAL} else 502
-    return JsonResponse(_job_payload(job), status=status, encoder=DjangoJSONEncoder)
+    job_id = job.pk
+    run_in_background(
+        f"facebook:{account.pk}",
+        lambda: process_facebook_job(FacebookSyncJob.objects.get(pk=job_id)),
+    )
+    job.refresh_from_db()
+    return JsonResponse(_job_payload(job), status=202, encoder=DjangoJSONEncoder)
 
 
 @creator_json

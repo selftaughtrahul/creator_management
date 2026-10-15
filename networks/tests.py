@@ -133,7 +133,7 @@ class SampleConnectionTests(TestCase):
         self.client.force_login(employee)
         with (
             patch("networks.views.exchange_code", return_value={"access_token": "tok", "expires_in": 3600}),
-            patch("networks.views.sync_account"),
+            patch("networks.views._start_deep_sync"),
         ):
             response = self.client.get(
                 reverse("networks:oauth_callback", args=["facebook"]),

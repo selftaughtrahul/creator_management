@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
 from accounts.permissions import is_creator
+from networks.background import run_in_background
 from networks.instagram.jobs import enqueue_instagram_sync, process_instagram_job
 from networks.instagram.present import attached_profile
 from networks.instagram_models import InstagramComment, InstagramMedia, InstagramSnapshot, InstagramSyncJob
@@ -202,9 +203,13 @@ def sync_now(request):
         return JsonResponse({"error": "Connect a live Instagram account first."}, status=400)
     mode = "full" if request.POST.get("mode") == "full" else "incremental"
     job = enqueue_instagram_sync(account, mode=mode, requested_by=request.user)
-    process_instagram_job(job)
-    status = 200 if job.status in {InstagramSyncJob.Status.COMPLETED, InstagramSyncJob.Status.PARTIAL} else 502
-    return JsonResponse(_job_payload(job), status=status, encoder=DjangoJSONEncoder)
+    job_id = job.pk
+    run_in_background(
+        f"instagram:{account.pk}",
+        lambda: process_instagram_job(InstagramSyncJob.objects.get(pk=job_id)),
+    )
+    job.refresh_from_db()
+    return JsonResponse(_job_payload(job), status=202, encoder=DjangoJSONEncoder)
 
 
 @creator_json

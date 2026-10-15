@@ -7,7 +7,8 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
 from accounts.permissions import is_creator
-from networks.youtube.jobs import enqueue_youtube_sync, maybe_run
+from networks.background import run_in_background
+from networks.youtube.jobs import enqueue_youtube_sync, process_youtube_job
 from networks.youtube.aggregates import growth
 from networks.youtube_models import YouTubeChannel, YouTubeSyncJob, YouTubeVideo
 
@@ -184,10 +185,13 @@ def channel_sync(request, channel_id):
         return _error("Connect a live YouTube account before syncing.", 400)
     mode = _mode(request)
     job = enqueue_youtube_sync(channel.account, mode=mode, requested_by=request.user)
-    maybe_run(job)
+    job_id = job.pk
+    run_in_background(
+        f"youtube:{channel.account_id}",
+        lambda: process_youtube_job(YouTubeSyncJob.objects.get(pk=job_id)),
+    )
     job.refresh_from_db()
-    status = 200 if job.status in {"completed", "partial"} else 202
-    return JsonResponse(_job_payload(job), status=status, encoder=DjangoJSONEncoder)
+    return JsonResponse(_job_payload(job), status=202, encoder=DjangoJSONEncoder)
 
 
 @creator_json
