@@ -25,9 +25,9 @@ class DocumentInline(admin.TabularInline):
 
 @admin.register(Campaign)
 class CampaignAdmin(admin.ModelAdmin):
-    list_display = ("name", "owner", "status", "budget", "updated_at")
+    list_display = ("name", "client", "primary_market", "status", "updated_at")
     list_filter = ("status",)
-    search_fields = ("name", "objective")
+    search_fields = ("name", "client", "objective", "primary_niche", "primary_market")
     inlines = [DocumentInline, MembershipInline]
 
 

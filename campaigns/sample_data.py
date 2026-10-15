@@ -11,7 +11,7 @@ from campaigns.models import (
     Offer,
     RecommendationFeedback,
 )
-from creators.classify import classify_with_rules
+from classify import classify_with_rules
 from creators.models import Category, CreatorProfile, Subcategory
 from creators.taxonomy import ensure_taxonomy
 from networks.demo import connect_sample
@@ -176,7 +176,7 @@ def _create_campaigns(actor, creators):
             name=f"Sample campaign {index + 1:02d}",
             objective=SAMPLE_OBJECTIVE,
             budget=20000 + index * 5000,
-            niche=niche,
+            primary_niche=niche.name if niche else "",
             location=locations[index % len(locations)],
             platforms=[platforms[index % len(platforms)]],
             follower_min=1000,

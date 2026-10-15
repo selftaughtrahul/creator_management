@@ -16,7 +16,7 @@ from campaigns.models import (
     RecommendationFeedback,
 )
 from campaigns.search import search_creators
-from creators.classify import classify_with_rules
+from classify import classify_with_rules
 from creators.models import Category
 from creators.taxonomy import ensure_taxonomy
 from creators.tests import add_snapshot, make_creator, make_user
@@ -149,7 +149,7 @@ class CampaignAndSearchTests(TestCase):
         self.assertTrue(any("followers" in reason.lower() for reason in gamer["reasons"]))
 
     def test_feedback_is_unique_per_reviewer_and_can_update(self):
-        campaign = Campaign.objects.create(owner=self.team, name="Test", niche=self.gaming, location="India")
+        campaign = Campaign.objects.create(owner=self.team, name="Test", primary_niche="Gaming", location="India")
         url = reverse("campaigns:feedback_submit", args=[campaign.pk, self.creator.pk])
         first = self.client.post(url, {"decision": "yes", "comment": "fits"})
         self.assertEqual(first.status_code, 302)
@@ -282,8 +282,8 @@ class CampaignTransferTests(TestCase):
         self.assertRedirects(created, reverse("campaigns:list"))
         campaign = Campaign.objects.get(name="Summer push")
         self.assertEqual(campaign.owner, self.team)
-        self.assertEqual(campaign.niche.slug, "gaming")
-        self.assertEqual(campaign.subcategory.slug, "mobile-gaming")
+        self.assertEqual(campaign.primary_niche, "gaming")
+        self.assertEqual(campaign.secondary_niche, "mobile-gaming")
         self.assertEqual(campaign.platforms, ["youtube", "instagram"])
         self.assertEqual(campaign.status, Campaign.Status.ACTIVE)
         self.assertEqual(campaign.budget, Decimal("25000.50"))
@@ -299,13 +299,13 @@ class CampaignTransferTests(TestCase):
         )
         self.assertRedirects(rejected, reverse("campaigns:list"))
         self.assertEqual(Campaign.objects.filter(name="Broken").count(), 0)
-        self.assertContains(rejected, "does not exist")
+        self.assertContains(rejected, "tiktok")
 
     def test_export_round_trip_updates_existing_campaign(self):
         campaign = Campaign.objects.create(
             owner=self.team,
             name="Original",
-            niche=Category.objects.get(slug="gaming"),
+            primary_niche="gaming",
             status=Campaign.Status.DRAFT,
             platforms=["youtube"],
         )
@@ -335,3 +335,52 @@ class CampaignTransferTests(TestCase):
         )
         self.assertContains(response, "Delete the example row")
         self.assertEqual(Campaign.objects.count(), 0)
+
+
+class CampaignRequirementImportTests(TestCase):
+    def setUp(self):
+        ensure_taxonomy()
+        self.team = make_user("lead@example.com", "lead")
+        self.client.force_login(self.team)
+
+    def test_sheet_row_maps_onto_existing_and_new_columns(self):
+        from campaigns.intake import import_requirement_records
+
+        created, updated = import_requirement_records(
+            [
+                {
+                    "Client": " This is just an Example - skip",
+                    "Primary Market": "Germany",
+                },
+                {
+                    "Client": "Paybis",
+                    "Priority": "TRUE",
+                    "Priority Rank": "2",
+                    "Deadline to scout the profiles": "16/10/2026",
+                    "Primary Market": "Nordics, Switzerland, and Germany.",
+                    "Platform": "YouTube creators + Telegram community owners",
+                    "Primary Niche / Vertical": "Fitness",
+                    "Min Followers": "10,000",
+                    "Max Followers/Tiers": "Micro (10,000 - 100,000)",
+                    "Min Avg Views": "5000 - 10,000",
+                    "Min Engagement Rate (%)": "2",
+                },
+            ],
+            self.team,
+        )
+        self.assertEqual((created, updated), (1, 0))
+        campaign = Campaign.objects.get(name="Paybis")
+        self.assertEqual(campaign.client, "Paybis")
+        self.assertEqual(campaign.scout_deadline.isoformat(), "2026-10-16")
+        self.assertEqual(campaign.follower_min, 10000)
+        self.assertIsNone(campaign.follower_max)
+        self.assertEqual(campaign.min_avg_views, "5000 - 10,000")
+        self.assertEqual(campaign.min_engagement, Decimal("2.00"))
+        self.assertEqual(campaign.platforms, ["youtube"])
+        self.assertEqual(campaign.primary_niche, "Fitness")
+        self.assertEqual(campaign.status, Campaign.Status.DRAFT)
+        detail = self.client.get(reverse("campaigns:detail", args=[campaign.pk]))
+        self.assertContains(detail, "Campaign requirements")
+        self.assertContains(detail, "Nordics, Switzerland, and Germany.")
+        self.assertNotContains(detail, "Priority rank")
+        self.assertNotContains(detail, "Max followers / tiers")

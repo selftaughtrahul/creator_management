@@ -137,14 +137,22 @@ def parse_with_anthropic(text):
     return _validate_llm(data)
 
 
+def _taxonomy_slug(text, model):
+    text = (text or "").strip()
+    if not text:
+        return None
+    row = model.objects.filter(slug=text).first() or model.objects.filter(name__iexact=text).first()
+    return row.slug if row else None
+
+
 def criteria_from_campaign(campaign):
     return {
         "location": campaign.location or None,
         "follower_min": campaign.follower_min,
         "follower_max": campaign.follower_max,
         "platforms": list(campaign.platforms or []),
-        "niche": campaign.niche.slug if campaign.niche else None,
-        "subcategory": campaign.subcategory.slug if campaign.subcategory else None,
+        "niche": _taxonomy_slug(campaign.primary_niche, Category),
+        "subcategory": _taxonomy_slug(campaign.secondary_niche, Subcategory),
         "min_engagement": str(campaign.min_engagement) if campaign.min_engagement is not None else None,
         "require_strong_engagement": False,
         "audience": campaign.audience_notes or None,

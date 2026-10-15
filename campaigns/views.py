@@ -65,7 +65,7 @@ def delete_sample_data(request):
 
 
 def _campaign_list(request, form=None, open_form=False, editing=None):
-    rows = Campaign.objects.select_related("owner", "niche")
+    rows = Campaign.objects.select_related("owner")
     status = request.GET.get("status")
     if status:
         rows = rows.filter(status=status)
@@ -93,7 +93,7 @@ def campaign_list(request):
 def export_campaign_file(request):
     if request.GET.get("template") == "1":
         return export_campaigns([], filename="campaigns-template.csv", sample=True)
-    rows = Campaign.objects.select_related("niche", "subcategory").order_by("name")
+    rows = Campaign.objects.order_by("name")
     return export_campaigns(rows)
 
 
@@ -180,7 +180,7 @@ def _render_campaign_detail(request, campaign, *, edit_form=None, open_drawer=""
 
 @permission_required("campaigns")
 def campaign_detail(request, pk):
-    campaign = get_object_or_404(Campaign.objects.select_related("niche", "subcategory", "owner"), pk=pk)
+    campaign = get_object_or_404(Campaign.objects.select_related("owner"), pk=pk)
     return _render_campaign_detail(request, campaign)
 
 

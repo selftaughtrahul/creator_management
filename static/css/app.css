@@ -561,9 +561,15 @@ button, input, textarea, select { font-family: inherit; }
 .snapshot-block h3, .panel h3 { font-size: 22px; margin: 0 0 8px; }
 .snapshot-block .kicker { margin-bottom: 8px; }
 .table-wrap { overflow-x: auto; }
+.table-scroll { overflow-x: auto; }
+table.data.wide { width: max-content; min-width: 100%; border: 1px solid var(--line); }
+table.data.wide th,
+table.data.wide td { white-space: nowrap; vertical-align: top; border: 1px solid var(--line); }
 table.data { width: 100%; border-collapse: collapse; }
 table.data th { text-align: left; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 8px; border-bottom: 1px solid var(--line); }
 table.data td { padding: 12px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.requirements th { width: 220px; vertical-align: top; text-transform: none; letter-spacing: 0; font-size: 13px; }
+table.requirements td { white-space: pre-wrap; vertical-align: top; }
 table.data a { color: var(--ink); font-weight: 600; }
 table.stats th, table.stats td { white-space: nowrap; }
 .account-cell {

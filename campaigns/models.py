@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from creators.models import Category, CreatorProfile, Subcategory
+from creators.models import CreatorProfile
 from networks.models import SocialAccount
 
 
@@ -20,15 +20,35 @@ class Campaign(models.Model):
     name = models.CharField(max_length=160)
     objective = models.TextField(blank=True)
     budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    niche = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
-    subcategory = models.ForeignKey(Subcategory, on_delete=models.SET_NULL, null=True, blank=True)
     location = models.CharField(max_length=120, blank=True)
     platforms = models.JSONField(default=list, blank=True)
     follower_min = models.PositiveIntegerField(null=True, blank=True)
     follower_max = models.PositiveIntegerField(null=True, blank=True)
     min_engagement = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    audience_notes = models.TextField(blank=True)
+    audience_notes = models.TextField("Notes", blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    client = models.CharField(max_length=160, blank=True)
+    scout_deadline = models.DateField("Deadline to scout the profiles", null=True, blank=True)
+    primary_market = models.CharField(max_length=255, blank=True)
+    additional_markets = models.CharField(max_length=255, blank=True)
+    creators_needed = models.CharField("# Creators needed", max_length=160, blank=True)
+    primary_niche = models.TextField("Primary niche / vertical", blank=True)
+    secondary_niche = models.TextField("Secondary niche / sub niche", blank=True)
+    content_format = models.TextField(blank=True)
+    gender = models.CharField(max_length=80, blank=True)
+    audience_location = models.CharField(max_length=255, blank=True)
+    audience_language = models.CharField(max_length=160, blank=True)
+    min_avg_views = models.CharField("Min avg views", max_length=80, blank=True)
+    view_consistency = models.CharField("Min view consistency", max_length=80, blank=True)
+    max_rate_usd = models.DecimalField(
+        "Max rate per deliverable (USD)",
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    delivery_deadline = models.DateField(null=True, blank=True)
+    comments = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -37,6 +57,46 @@ class Campaign(models.Model):
 
     def __str__(self):
         return self.name
+
+    def niche_label(self):
+        text = (self.primary_niche or "").strip()
+        if not text:
+            return ""
+        return text.splitlines()[0][:80]
+
+    def requirement_rows(self):
+        """Intake fields from the campaign-requirements sheet, skipping blanks."""
+        if not (self.client or self.primary_market or self.primary_niche):
+            return []
+        rows = []
+
+        def add(label, value):
+            if value is None or value == "":
+                return
+            rows.append((label, value))
+
+        add("Client", self.client)
+        add("Deadline to scout", self.scout_deadline)
+        add("Primary market", self.primary_market)
+        add("Additional markets", self.additional_markets)
+        add("Creators needed", self.creators_needed)
+        add("Primary niche", self.primary_niche)
+        add("Secondary niche", self.secondary_niche)
+        add("Content format", self.content_format)
+        add("Gender", self.gender)
+        add("Audience location", self.audience_location)
+        add("Audience language", self.audience_language)
+        add("Min followers", self.follower_min)
+        add("Max followers", self.follower_max)
+        add("Min avg views", self.min_avg_views)
+        add("Min engagement", f"{self.min_engagement}%" if self.min_engagement is not None else None)
+        add("View consistency", self.view_consistency)
+        add("Max rate (USD)", self.max_rate_usd)
+        add("Delivery deadline", self.delivery_deadline)
+        add("Notes", self.audience_notes)
+        add("Brief", self.objective)
+        add("Comments", self.comments)
+        return rows
 
     def platform_labels(self):
         labels = []

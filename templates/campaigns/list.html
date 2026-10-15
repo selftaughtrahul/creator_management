@@ -1,4 +1,5 @@
 {% extends "app/base.html" %}
+{% load humanize %}
 {% block title %}Campaigns · Awisee{% endblock %}
 {% block page_heading %}Campaigns{% endblock %}
 {% block content %}
@@ -11,21 +12,74 @@
       <a class="btn-accent" href="{% url 'campaigns:list' %}?new=1">New campaign</a>
     </div>
   </div>
-  <section class="panel">
-    <table class="data">
-      <thead><tr><th>Name</th><th>Status</th><th>Niche</th><th>Budget</th><th>Updated</th><th></th></tr></thead>
+  <section class="panel table-scroll">
+    <table class="data wide">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Client</th>
+          <th>Status</th>
+          <th>Budget</th>
+          <th>Max rate (USD)</th>
+          <th>Location</th>
+          <th>Primary market</th>
+          <th>Additional markets</th>
+          <th>Platforms</th>
+          <th>Min followers</th>
+          <th>Max followers</th>
+          <th>Min engagement</th>
+          <th>Min avg views</th>
+          <th>View consistency</th>
+          <th>Creators needed</th>
+          <th>Primary niche</th>
+          <th>Secondary niche</th>
+          <th>Content format</th>
+          <th>Gender</th>
+          <th>Audience location</th>
+          <th>Audience language</th>
+          <th>Scout deadline</th>
+          <th>Delivery deadline</th>
+          <th>Brief</th>
+          <th>Notes</th>
+          <th>Comments</th>
+          <th>Updated</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
         {% for campaign in page %}
           <tr>
             <td><a href="{% url 'campaigns:detail' campaign.pk %}">{{ campaign.name }}</a></td>
+            <td>{{ campaign.client|default:"—" }}</td>
             <td>{{ campaign.get_status_display }}</td>
-            <td>{{ campaign.niche.name|default:"—" }}</td>
-            <td>{% if campaign.budget is not None %}{{ campaign.budget }}{% else %}Not set{% endif %}</td>
+            <td>{% if campaign.budget is not None %}{{ campaign.budget|intcomma }}{% else %}—{% endif %}</td>
+            <td>{% if campaign.max_rate_usd is not None %}{{ campaign.max_rate_usd|intcomma }}{% else %}—{% endif %}</td>
+            <td>{{ campaign.location|default:"—" }}</td>
+            <td>{{ campaign.primary_market|default:"—" }}</td>
+            <td>{{ campaign.additional_markets|default:"—" }}</td>
+            <td>{{ campaign.platform_labels|join:", "|default:"—" }}</td>
+            <td>{% if campaign.follower_min is not None %}{{ campaign.follower_min|intcomma }}{% else %}—{% endif %}</td>
+            <td>{% if campaign.follower_max is not None %}{{ campaign.follower_max|intcomma }}{% else %}—{% endif %}</td>
+            <td>{% if campaign.min_engagement is not None %}{{ campaign.min_engagement }}%{% else %}—{% endif %}</td>
+            <td>{{ campaign.min_avg_views|default:"—" }}</td>
+            <td>{{ campaign.view_consistency|default:"—" }}</td>
+            <td>{{ campaign.creators_needed|default:"—" }}</td>
+            <td title="{{ campaign.primary_niche }}">{% if campaign.primary_niche %}{{ campaign.primary_niche|truncatechars:20 }}{% else %}—{% endif %}</td>
+            <td title="{{ campaign.secondary_niche }}">{% if campaign.secondary_niche %}{{ campaign.secondary_niche|truncatechars:20 }}{% else %}—{% endif %}</td>
+            <td title="{{ campaign.content_format }}">{% if campaign.content_format %}{{ campaign.content_format|truncatechars:20 }}{% else %}—{% endif %}</td>
+            <td>{{ campaign.gender|default:"—" }}</td>
+            <td>{{ campaign.audience_location|default:"—" }}</td>
+            <td>{{ campaign.audience_language|default:"—" }}</td>
+            <td>{% if campaign.scout_deadline %}{{ campaign.scout_deadline|date:"d M Y" }}{% else %}—{% endif %}</td>
+            <td>{% if campaign.delivery_deadline %}{{ campaign.delivery_deadline|date:"d M Y" }}{% else %}—{% endif %}</td>
+            <td title="{{ campaign.objective }}">{% if campaign.objective %}{{ campaign.objective|truncatechars:20 }}{% else %}—{% endif %}</td>
+            <td title="{{ campaign.audience_notes }}">{% if campaign.audience_notes %}{{ campaign.audience_notes|truncatechars:20 }}{% else %}—{% endif %}</td>
+            <td title="{{ campaign.comments }}">{% if campaign.comments %}{{ campaign.comments|truncatechars:20 }}{% else %}—{% endif %}</td>
             <td>{{ campaign.updated_at|date:"d M Y" }}</td>
             <td><a class="btn-line" href="{% url 'campaigns:edit' campaign.pk %}">Edit</a></td>
           </tr>
         {% empty %}
-          <tr><td colspan="6">No campaigns yet.</td></tr>
+          <tr><td colspan="28">No campaigns yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>

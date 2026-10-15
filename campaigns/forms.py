@@ -55,7 +55,7 @@ class MultiFileField(forms.FileField):
             raise ValidationError(errors)
         return cleaned
 from creators.forms import StyledForm, StyledModelForm
-from creators.models import Category, Subcategory
+from creators.models import Category
 from networks.models import SocialAccount
 
 
@@ -77,8 +77,6 @@ class CampaignForm(StyledModelForm):
             "name",
             "objective",
             "budget",
-            "niche",
-            "subcategory",
             "location",
             "platforms",
             "follower_min",
@@ -86,16 +84,36 @@ class CampaignForm(StyledModelForm):
             "min_engagement",
             "audience_notes",
             "status",
+            "client",
+            "scout_deadline",
+            "primary_market",
+            "additional_markets",
+            "creators_needed",
+            "primary_niche",
+            "secondary_niche",
+            "content_format",
+            "gender",
+            "audience_location",
+            "audience_language",
+            "min_avg_views",
+            "view_consistency",
+            "max_rate_usd",
+            "delivery_deadline",
+            "comments",
         ]
         widgets = {
-            "objective": forms.Textarea(attrs={"rows": 3}),
-            "audience_notes": forms.Textarea(attrs={"rows": 3}),
+            "objective": forms.Textarea(attrs={"rows": 8}),
+            "audience_notes": forms.Textarea(attrs={"rows": 4}),
+            "primary_niche": forms.Textarea(attrs={"rows": 3}),
+            "secondary_niche": forms.Textarea(attrs={"rows": 3}),
+            "content_format": forms.Textarea(attrs={"rows": 2}),
+            "comments": forms.Textarea(attrs={"rows": 2}),
+            "scout_deadline": forms.DateInput(attrs={"type": "date"}),
+            "delivery_deadline": forms.DateInput(attrs={"type": "date"}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["niche"].queryset = Category.objects.all()
-        self.fields["subcategory"].queryset = Subcategory.objects.select_related("category")
         if self.instance and self.instance.pk:
             self.initial["platforms"] = self.instance.platforms or []
 
@@ -105,10 +123,6 @@ class CampaignForm(StyledModelForm):
         high = data.get("follower_max")
         if low is not None and high is not None and low > high:
             self.add_error("follower_max", "Maximum followers must be at least the minimum.")
-        subcategory = data.get("subcategory")
-        niche = data.get("niche")
-        if subcategory and niche and subcategory.category_id != niche.id:
-            self.add_error("subcategory", "Subcategory must belong to the selected niche.")
         return data
 
     def save(self, commit=True):

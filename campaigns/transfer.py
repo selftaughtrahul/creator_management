@@ -2,7 +2,6 @@ from django.db import transaction
 
 from accounts.csvutil import SpreadsheetError, csv_response, parse_decimal, parse_int, read_table
 from campaigns.models import Campaign
-from creators.models import Category, Subcategory
 from networks.models import SocialAccount
 
 CAMPAIGN_COLUMNS = [
@@ -24,7 +23,7 @@ CAMPAIGN_COLUMNS = [
 COLUMN_HELP = (
     "The template includes one example row. Delete that row before you import your own campaigns. "
     "id blank creates a campaign; an existing id updates that campaign. "
-    "niche and subcategory are slugs. platforms is a comma-separated list of instagram, facebook, youtube, twitter. "
+    "niche and subcategory are free text for the primary and secondary niche. platforms is a comma-separated list of instagram, facebook, youtube, twitter. "
     "status is draft, active, paused, or completed. Leave budget, follower limits, and min_engagement blank when they are not set."
 )
 
@@ -56,8 +55,8 @@ def export_campaigns(campaigns, *, filename="campaigns.csv", sample=False):
                 campaign.name,
                 campaign.objective,
                 "" if campaign.budget is None else campaign.budget,
-                campaign.niche.slug if campaign.niche_id else "",
-                campaign.subcategory.slug if campaign.subcategory_id else "",
+                campaign.primary_niche,
+                campaign.secondary_niche,
                 campaign.location,
                 ",".join(campaign.platforms or []),
                 "" if campaign.follower_min is None else campaign.follower_min,
@@ -74,14 +73,12 @@ def import_campaigns(uploaded, owner):
     table = [row for row in read_table(uploaded, CAMPAIGN_COLUMNS) if not _is_sample_campaign(row[1])]
     if not table:
         raise SpreadsheetError(["Delete the example row and add your own campaigns before importing."])
-    categories = {category.slug: category for category in Category.objects.all()}
-    subcategories = list(Subcategory.objects.select_related("category"))
     errors = []
     parsed = []
     seen_ids = set()
     for row_number, row in table:
         try:
-            item = _parse_campaign_row(row_number, row, categories, subcategories)
+            item = _parse_campaign_row(row_number, row)
         except ValueError as exc:
             errors.append(str(exc))
             continue
@@ -109,8 +106,8 @@ def import_campaigns(uploaded, owner):
                 "name",
                 "objective",
                 "budget",
-                "niche",
-                "subcategory",
+                "primary_niche",
+                "secondary_niche",
                 "location",
                 "platforms",
                 "follower_min",
@@ -132,7 +129,7 @@ def _is_sample_campaign(row):
     return all(row.get(column, "") == value for column, value in SAMPLE_CAMPAIGN.items())
 
 
-def _parse_campaign_row(row_number, row, categories, subcategories):
+def _parse_campaign_row(row_number, row):
     name = row["name"]
     if not name:
         raise ValueError(f"Row {row_number}: name is required.")
@@ -146,24 +143,6 @@ def _parse_campaign_row(row_number, row, categories, subcategories):
         raise ValueError(
             f"Row {row_number}: status must be one of {', '.join(Campaign.Status.values)}."
         )
-    niche = None
-    if row["niche"]:
-        niche = categories.get(row["niche"])
-        if niche is None:
-            raise ValueError(f"Row {row_number}: niche slug '{row['niche']}' does not exist.")
-    subcategory = None
-    if row["subcategory"]:
-        matches = [item for item in subcategories if item.slug == row["subcategory"]]
-        if niche is not None:
-            matches = [item for item in matches if item.category_id == niche.id]
-        if not matches:
-            raise ValueError(f"Row {row_number}: subcategory slug '{row['subcategory']}' does not match the niche.")
-        if len(matches) > 1:
-            raise ValueError(
-                f"Row {row_number}: subcategory slug '{row['subcategory']}' matches more than one niche. Set the niche column."
-            )
-        subcategory = matches[0]
-        niche = niche or subcategory.category
     platforms = []
     if row["platforms"]:
         allowed = set(SocialAccount.Platform.values)
@@ -187,8 +166,8 @@ def _parse_campaign_row(row_number, row, categories, subcategories):
         "name": name,
         "objective": row["objective"],
         "budget": parse_decimal(row["budget"], row_number=row_number, column="budget", max_digits=12, decimal_places=2),
-        "niche": niche,
-        "subcategory": subcategory,
+        "primary_niche": row["niche"],
+        "secondary_niche": row["subcategory"],
         "location": location,
         "platforms": platforms,
         "follower_min": follower_min,

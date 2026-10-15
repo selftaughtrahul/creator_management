@@ -4,7 +4,7 @@
 {% block page_heading %}{{ campaign.name }}{% endblock %}
 {% block content %}
   <div class="page-head">
-    <p>{{ campaign.get_status_display }} · {{ campaign.location|default:"No location" }} · {{ campaign.niche.name|default:"No niche" }}</p>
+    <p>{{ campaign.get_status_display }} · {{ campaign.primary_market|default:campaign.location|default:"No location" }} · {{ campaign.niche_label|default:"No niche" }}</p>
     <div class="actions">
       <a class="btn-line" href="{% url 'campaigns:edit' campaign.pk %}">Edit</a>
       <a class="btn-accent" href="{% url 'campaigns:campaign_discover' campaign.pk %}?from_campaign=1">Discover creators</a>
@@ -17,7 +17,22 @@
     <article class="stat"><span class="label">Remaining</span><strong>{% if remaining is not None %}{{ remaining|intcomma }}{% else %}—{% endif %}</strong><em>Budget minus recorded costs only</em></article>
     <article class="stat"><span class="label">Followers</span><strong>{% if campaign.follower_min or campaign.follower_max %}{{ campaign.follower_min|default:"0"|intcomma }}–{{ campaign.follower_max|default:"∞" }}{% else %}Any{% endif %}</strong><em>Min engagement {% if campaign.min_engagement %}{{ campaign.min_engagement }}%{% else %}not set{% endif %}</em></article>
   </section>
-  <section class="panel">
+  {% if campaign.requirement_rows %}
+    <section class="panel">
+      <h2>Campaign requirements</h2>
+      <table class="data requirements">
+        <tbody>
+          {% for label, value in campaign.requirement_rows %}
+            <tr>
+              <th>{{ label }}</th>
+              <td>{{ value }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  {% endif %}
+  <section class="panel mt-3">
     <h2>Documents</h2>
     {% if campaign.documents.all %}
       <ul>
