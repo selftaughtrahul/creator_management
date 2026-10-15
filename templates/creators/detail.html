@@ -42,6 +42,9 @@
       {% for row in classifications %}
         <p>{{ row.created_at|date:"d M Y H:i" }} · {{ row.category.name|default:"unclassified" }} · {{ row.get_method_display }} · {{ row.get_provenance_display }}{% if row.needs_review %} · needs review{% endif %}<br><span class="muted">{{ row.explanation }}</span></p>
       {% endfor %}
+      {% for row in iab_labels %}
+        <p>{{ row.iab_category.unique_id }} {{ row.iab_category.name }}{% if row.custom_niche %} · {{ row.custom_niche }}{% endif %}{% if row.custom_sub_niche %} / {{ row.custom_sub_niche }}{% endif %}{% if row.custom_micro_niche %} / {{ row.custom_micro_niche }}{% endif %}{% if row.needs_review %} · needs review{% endif %}<br><span class="muted">{{ row.explanation }}</span></p>
+      {% endfor %}
       <button class="btn-line" type="button" data-bs-toggle="offcanvas" data-bs-target="#reviewDrawer">Save verified label</button>
     </article>
     <article class="panel">

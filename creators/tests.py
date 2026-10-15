@@ -8,7 +8,7 @@ from django.utils import timezone
 from allauth.account.models import EmailAddress
 
 from accounts.models import StudioProfile
-from creators.classify import classify_with_rules
+from classify import classify_with_rules
 from creators.evaluation import evaluate_labels
 from creators.jobs import enqueue_job, process_job
 from creators.metrics import creator_metrics

@@ -10,7 +10,7 @@ from accounts.csvutil import SpreadsheetError
 from accounts.models import StudioProfile
 from accounts.permissions import creator_required, permission_required
 from accounts.utils import unique_username
-from creators.classify import classify_creator
+from classify import classify, classify_niche
 from creators.evaluation import evaluate_labels
 from creators.forms import (
     ClassificationReviewForm,
@@ -29,6 +29,7 @@ from creators.models import (
     CreatorDocument,
     CreatorProfile,
     EnrichmentJob,
+    IABClassification,
 )
 from creators.tools import bot_risk_indicators, brand_safety_hits, data_quality
 from creators.transfer import COLUMN_HELP as CREATOR_COLUMN_HELP
@@ -341,6 +342,7 @@ def creator_detail(request, pk):
             "bot": bot_risk_indicators(creator),
             "safety": brand_safety_hits(creator),
             "classifications": creator.classifications.select_related("category", "subcategory")[:8],
+            "iab_labels": creator.iab_labels.filter(mode=IABClassification.Mode.RETRIEVED).select_related("iab_category"),
             "jobs": creator.jobs.all()[:8],
             "enrich_form": EnrichmentRequestForm(),
             "review_form": ClassificationReviewForm(),
@@ -355,8 +357,13 @@ def classify_now(request, pk):
     method = request.POST.get("method") or "rules"
     if method not in ("rules", "anthropic"):
         method = "rules"
-    classify_creator(creator, method=method, user=request.user)
-    messages.success(request, "Classification saved. Metrics were not requested from Claude.")
+    classify_niche(creator, method=method, user=request.user)
+    iab_rows = classify(creator, mode=IABClassification.Mode.RETRIEVED, method=method, user=request.user)
+    if iab_rows:
+        labels = ", ".join(f"{row.iab_category.unique_id} {row.iab_category.name}" for row in iab_rows[:3])
+        messages.success(request, f"Classification saved. IAB: {labels}.")
+    else:
+        messages.success(request, "Classification saved. Metrics were not requested from Claude.")
     return redirect("creators:detail", pk=pk)
 
 

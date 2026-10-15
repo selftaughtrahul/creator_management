@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "networks",
     "analytics",
     "creators",
+    "classify.apps.ClassifyConfig",
     "campaigns",
 ]
 
@@ -235,6 +236,12 @@ if DEBUG and "test" not in sys.argv:
     MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
     INTERNAL_IPS = ["127.0.0.1"]
 
+IAB_TAXONOMY_VERSION = "3.1"
+IAB_TAXONOMY_FILE = BASE_DIR / "data" / "taxonomies" / "Content Taxonomy 3.1.tsv"
+QDRANT_URL = os.environ.get("QDRANT_URL", "").rstrip("/")
+QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", "")
+QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION", "creator_content")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -246,6 +253,7 @@ LOGGING = {
     },
     "loggers": {
         "creators": {"handlers": ["console"], "level": "INFO"},
+        "classify": {"handlers": ["console"], "level": "INFO"},
         "campaigns": {"handlers": ["console"], "level": "INFO"},
         "networks": {"handlers": ["console"], "level": "INFO"},
     },

@@ -4,7 +4,7 @@ from decimal import Decimal
 from creators.anthropic import AnthropicError, anthropic_configured, complete_json
 from creators.models import Category, Classification, Subcategory
 
-logger = logging.getLogger("creators.classify")
+logger = logging.getLogger("classify")
 
 
 def profile_text(creator, caption_limit=8):
@@ -19,7 +19,7 @@ def profile_text(creator, caption_limit=8):
     return "\n".join(part for part in parts if part).strip()
 
 
-def classify_creator(creator, *, method="rules", user=None):
+def classify_niche(creator, *, method="rules", user=None):
     if method == "anthropic":
         return classify_with_anthropic(creator, user=user)
     return classify_with_rules(creator, user=user)

@@ -214,6 +214,117 @@ class EnrichmentJob(models.Model):
         return f"{self.creator} · {self.platform} · {self.status}"
 
 
+class IABCategory(models.Model):
+    """One official Content Taxonomy row. IDs are imported, never minted here."""
+
+    unique_id = models.CharField(max_length=32)
+    parent_id = models.CharField(max_length=32, blank=True)
+    name = models.CharField(max_length=255)
+    tier_1 = models.CharField(max_length=255, blank=True)
+    tier_2 = models.CharField(max_length=255, blank=True)
+    tier_3 = models.CharField(max_length=255, blank=True)
+    tier_4 = models.CharField(max_length=255, blank=True)
+    taxonomy_version = models.CharField(max_length=16, default="3.1")
+
+    class Meta:
+        ordering = ["taxonomy_version", "name"]
+        verbose_name = "IAB category"
+        verbose_name_plural = "IAB categories"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["taxonomy_version", "unique_id"],
+                name="unique_iab_category_version",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["taxonomy_version", "parent_id"]),
+        ]
+
+    def __str__(self):
+        return f"{self.unique_id} {self.name}"
+
+    @property
+    def depth(self):
+        return sum(1 for tier in (self.tier_1, self.tier_2, self.tier_3, self.tier_4) if tier)
+
+
+class IABMapping(models.Model):
+    """Awisee niche path for one official category. Several rows may share one IAB id."""
+
+    iab_category = models.ForeignKey(IABCategory, on_delete=models.CASCADE, related_name="mappings")
+    custom_niche = models.CharField(max_length=80)
+    custom_sub_niche = models.CharField(max_length=80, blank=True)
+    custom_micro_niche = models.CharField(max_length=120, blank=True)
+    keywords = models.CharField(max_length=400, blank=True)
+
+    class Meta:
+        ordering = ["custom_niche", "custom_sub_niche", "custom_micro_niche"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["iab_category", "custom_niche", "custom_sub_niche", "custom_micro_niche"],
+                name="unique_iab_custom_mapping",
+            ),
+        ]
+
+    def __str__(self):
+        parts = [self.custom_niche, self.custom_sub_niche, self.custom_micro_niche]
+        return f"{self.iab_category.unique_id} → {' / '.join(part for part in parts if part)}"
+
+    def keyword_list(self):
+        return [part.strip().lower() for part in self.keywords.split(",") if part.strip()]
+
+
+class IABClassification(models.Model):
+    class Mode(models.TextChoices):
+        PROFILE = "profile", "Profile only"
+        CONTENT = "content", "Posts and transcripts"
+        RETRIEVED = "retrieved", "Retrieved content"
+
+    class Method(models.TextChoices):
+        RULES = "rules", "Rules"
+        ANTHROPIC = "anthropic", "Claude"
+
+    creator = models.ForeignKey(CreatorProfile, on_delete=models.CASCADE, related_name="iab_labels")
+    iab_category = models.ForeignKey(IABCategory, on_delete=models.PROTECT, related_name="classifications")
+    taxonomy_version = models.CharField(max_length=16)
+    custom_niche = models.CharField(max_length=80, blank=True)
+    custom_sub_niche = models.CharField(max_length=80, blank=True)
+    custom_micro_niche = models.CharField(max_length=120, blank=True)
+    mode = models.CharField(max_length=20, choices=Mode.choices)
+    method = models.CharField(max_length=20, choices=Method.choices)
+    confidence = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
+    evidence = models.JSONField(default=list, blank=True)
+    needs_review = models.BooleanField(default=True)
+    explanation = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="iab_classifications_made",
+    )
+
+    class Meta:
+        ordering = ["-created_at", "custom_niche"]
+
+    def __str__(self):
+        return f"{self.creator} · {self.iab_category.unique_id} {self.iab_category.name}"
+
+
+class IABTaxonomyImport(models.Model):
+    taxonomy_version = models.CharField(max_length=16)
+    row_count = models.PositiveIntegerField()
+    source_name = models.CharField(max_length=255)
+    imported_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-imported_at"]
+
+    def __str__(self):
+        return f"Content Taxonomy {self.taxonomy_version} · {self.row_count} rows"
+
+
 class CreatorDocument(models.Model):
     creator = models.ForeignKey(
         CreatorProfile,

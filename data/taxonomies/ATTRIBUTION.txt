@@ -1,0 +1,8 @@
+Content Taxonomy 3.1
+Publisher: IAB Tech Lab
+Source: https://github.com/InteractiveAdvertisingBureau/Taxonomies
+File: Content Taxonomies/Content Taxonomy 3.1.tsv
+License: Creative Commons Attribution 3.0 (CC BY 3.0)
+https://creativecommons.org/licenses/by/3.0/
+
+This copy is the upstream TSV, unchanged. Confirm the license in the source repository before redistributing it.
