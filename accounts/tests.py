@@ -103,6 +103,36 @@ class EmailSignupTests(TestCase):
         self.assertFalse(creator_on_staff.wsgi_request.user.is_authenticated)
 
 
+class PasswordResetTests(TestCase):
+    def _reset_link(self, email):
+        response = self.client.post(reverse("account_reset_password"), {"email": email})
+        self.assertRedirects(response, reverse("account_reset_password_done"))
+        match = re.search(r"https?://\S+", mail.outbox[-1].body)
+        self.assertIsNotNone(match)
+        return urlparse(match.group(0)).path
+
+    def _set_new_password(self, path):
+        landing = self.client.get(path)
+        self.assertEqual(landing.status_code, 302)
+        return self.client.post(
+            landing["Location"],
+            {"password1": "Harbor-Reset-2026!", "password2": "Harbor-Reset-2026!"},
+        )
+
+    def test_creator_password_reset_returns_to_creator_login(self):
+        make_creator("ada@example.com", "ada")
+        done = self._set_new_password(self._reset_link("ada@example.com"))
+        self.assertRedirects(done, reverse("account_login"))
+        self.assertFalse(done.wsgi_request.user.is_authenticated)
+        self.assertTrue(User.objects.get(email="ada@example.com").check_password("Harbor-Reset-2026!"))
+
+    def test_staff_password_reset_returns_to_staff_login(self):
+        make_user("emp@example.com", "emp", role=StudioProfile.Role.EMPLOYEE)
+        done = self._set_new_password(self._reset_link("emp@example.com"))
+        self.assertRedirects(done, reverse("accounts:staff_login"))
+        self.assertFalse(done.wsgi_request.user.is_authenticated)
+
+
 class RoleAccessTests(TestCase):
     def test_employee_without_discover_cannot_open_discover(self):
         employee = make_user("emp@example.com", "emp", role=StudioProfile.Role.EMPLOYEE)
