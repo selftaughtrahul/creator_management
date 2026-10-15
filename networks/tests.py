@@ -1,8 +1,9 @@
 from datetime import datetime, timezone as dt_timezone
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from allauth.account.models import EmailAddress
@@ -98,6 +99,72 @@ class SampleConnectionTests(TestCase):
         )
         self.assertNotIn("facebook.com", response.url)
         self.assertNotIn("config_id", response.url)
+
+    @override_settings(META_APP_ID="app", META_APP_SECRET="secret", DEBUG=True, FACEBOOK_REDIRECT_URI="")
+    def test_facebook_callback_returns_to_the_host_that_started_it(self):
+        employee = User.objects.create_user(
+            username="emp",
+            email="emp@example.com",
+            password="Northline-Studio-2026!",
+        )
+        start = self.client.get(
+            reverse("networks:start", args=["facebook"]),
+            HTTP_HOST="127.0.0.1:8000",
+        )
+        state = parse_qs(urlparse(start.url).query)["state"][0]
+        self.assertIn("redirect_uri=http%3A%2F%2Flocalhost%3A8000", start.url)
+        self.client.force_login(employee)
+        with (
+            patch("networks.views.exchange_code", return_value={"access_token": "tok", "expires_in": 3600}),
+            patch("networks.views.sync_account"),
+        ):
+            response = self.client.get(
+                reverse("networks:oauth_callback", args=["facebook"]),
+                {"code": "abc", "state": state},
+                HTTP_HOST="localhost:8000",
+            )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith("http://127.0.0.1:8000/analytics/facebook/"))
+        account = SocialAccount.objects.get(platform="facebook")
+        self.assertEqual(account.user, self.user)
+        self.assertEqual(account.access_token, "tok")
+        self.assertEqual(int(self.client.session["_auth_user_id"]), employee.pk)
+
+        landing = Client()
+        landing.force_login(self.user)
+        page = landing.get("/analytics/facebook/", HTTP_HOST="127.0.0.1:8000")
+        self.assertContains(page, "Facebook is connected")
+
+    @override_settings(META_APP_ID="app", META_APP_SECRET="secret", DEBUG=True, FACEBOOK_REDIRECT_URI="")
+    def test_facebook_callback_rejects_a_different_account_on_the_same_host(self):
+        employee = User.objects.create_user(
+            username="emp2",
+            email="emp2@example.com",
+            password="Northline-Studio-2026!",
+        )
+        start = self.client.get(
+            reverse("networks:start", args=["facebook"]),
+            HTTP_HOST="127.0.0.1:8000",
+        )
+        state = parse_qs(urlparse(start.url).query)["state"][0]
+        self.client.force_login(employee)
+        response = self.client.get(
+            reverse("networks:oauth_callback", args=["facebook"]),
+            {"code": "abc", "state": state},
+            HTTP_HOST="127.0.0.1:8000",
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("account_login"))
+        self.assertFalse(SocialAccount.objects.filter(platform="facebook").exists())
+
+    def test_instagram_developer_role_error_names_the_tester_invite(self):
+        response = self.client.get(
+            reverse("networks:oauth_callback", args=["instagram"]),
+            {"error": "access_denied", "error_description": "Insufficient developer role"},
+            follow=True,
+        )
+        self.assertContains(response, "Instagram testers")
+        self.assertContains(response, "Tester invites")
 
     def test_insight_history_rebuilds_daily_gains_into_totals(self):
         payload = {

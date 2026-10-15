@@ -13,10 +13,17 @@ if not DEBUG and SECRET_KEY == "dev-only-change-me":
     raise RuntimeError("Set SECRET_KEY in the environment before running with DEBUG=0.")
 
 ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.environ.get("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
-    if host.strip()
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+    "snout-getting-reoccupy.ngrok-free.dev",
 ]
+# ngrok terminates HTTPS and forwards plain HTTP, so the browser origin is https
+# while Django would otherwise only trust http://<host>.
+CSRF_TRUSTED_ORIGINS = [
+    "https://snout-getting-reoccupy.ngrok-free.dev",
+]
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -132,6 +139,8 @@ META_APP_ID = os.environ.get("META_APP_ID", "")
 META_APP_SECRET = os.environ.get("META_APP_SECRET", "")
 META_GRAPH_VERSION = os.environ.get("META_GRAPH_VERSION", "v23.0")
 META_LOGIN_CONFIG_ID = os.environ.get("META_LOGIN_CONFIG_ID", "")
+# Exact callback saved in the Meta app. Empty falls back to the request host.
+FACEBOOK_REDIRECT_URI = os.environ.get("FACEBOOK_REDIRECT_URI", "")
 INSTAGRAM_APP_ID = os.environ.get("INSTAGRAM_APP_ID", "")
 INSTAGRAM_APP_SECRET = os.environ.get("INSTAGRAM_APP_SECRET", "")
 INSTAGRAM_REDIRECT_URI = os.environ.get(

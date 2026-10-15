@@ -37,6 +37,7 @@ def begin_authorize(request, platform, redirect_uri):
         params["code_challenge_method"] = "S256"
     saved["user_id"] = request.user.pk
     saved["platform"] = platform
+    saved["origin"] = f"{request.scheme}://{request.get_host()}"
     cache.set(f"oauth-state-{state}", saved, timeout=600)
     request.session[f"oauth_{platform}"] = saved
     request.session.modified = True

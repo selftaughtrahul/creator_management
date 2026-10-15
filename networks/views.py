@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
-from django.core.exceptions import PermissionDenied
+from django.core.cache import cache
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -29,24 +29,82 @@ def _redirect_uri(request, platform):
     redirect_uri = request.build_absolute_uri(reverse("networks:oauth_callback", args=[platform]))
     if platform == "instagram" and settings.INSTAGRAM_REDIRECT_URI:
         return settings.INSTAGRAM_REDIRECT_URI
+    if platform == "facebook" and settings.FACEBOOK_REDIRECT_URI:
+        return settings.FACEBOOK_REDIRECT_URI
     if settings.DEBUG and platform == "facebook" and "://127.0.0.1" in redirect_uri:
         redirect_uri = redirect_uri.replace("://127.0.0.1", "://localhost", 1)
     return redirect_uri
 
 
-def _resume_user(request, user_id):
-    if request.user.is_authenticated:
-        if user_id and request.user.pk != user_id:
-            raise ProviderError("This connection was started from a different account.")
+def _here(request):
+    return f"{request.scheme}://{request.get_host()}"
+
+
+def _same_origin(request, origin):
+    return not origin or _here(request).rstrip("/") == origin.rstrip("/")
+
+
+def consume_oauth_notices(request):
+    if not request.user.is_authenticated:
         return
-    user = get_user_model().objects.filter(pk=user_id).first()
+    pending = cache.get(f"oauth-notices-{request.user.pk}")
+    if not pending:
+        return
+    cache.delete(f"oauth-notices-{request.user.pk}")
+    for item in pending:
+        messages.add_message(request, item["level"], item["message"])
+
+
+def _move_messages(request, user_id):
+    pending = [
+        {"level": message.level, "message": str(message)}
+        for message in messages.get_messages(request)
+    ]
+    if pending and user_id:
+        cache.set(f"oauth-notices-{user_id}", pending, timeout=180)
+
+
+def _leave_callback(request, saved, viewname, kwargs=None):
+    origin = (saved or {}).get("origin") or ""
+    path = reverse(viewname, kwargs=kwargs or {})
+    if not _same_origin(request, origin):
+        _move_messages(request, (saved or {}).get("user_id"))
+        return redirect(f"{origin.rstrip('/')}{path}")
+    if request.user.is_authenticated and not is_creator(request.user):
+        return redirect("account_login")
+    return redirect(path)
+
+
+def _pop_saved(request, platform, quiet=False):
+    try:
+        return pop_state(request, platform, request.GET.get("state", ""))
+    except ProviderError as exc:
+        if not quiet:
+            messages.error(request, str(exc))
+        return None
+
+
+def _connect_user(request, saved):
+    user_id = saved.get("user_id")
+    user = get_user_model().objects.filter(pk=user_id).first() if user_id else None
     if user is None:
         raise ProviderError("Sign in on this site, then connect the account again.")
+    if not is_creator(user):
+        raise ProviderError("Only a creator account can connect a social network.")
+    origin = saved.get("origin") or ""
+    if request.user.is_authenticated and request.user.pk == user.pk:
+        return user
+    if request.user.is_authenticated and not _same_origin(request, origin):
+        return user
+    if request.user.is_authenticated:
+        raise ProviderError("This connection was started from a different account.")
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+    return user
 
 
 @creator_required
 def connections(request):
+    consume_oauth_notices(request)
     accounts = {account.platform: account for account in request.user.social_accounts.all()}
     cards = []
     for key, meta in PLATFORMS.items():
@@ -77,9 +135,18 @@ def start_oauth(request, platform):
 def oauth_callback(request, platform):
     platform = _platform(platform)
     label = PLATFORMS[platform]["label"]
-    if request.GET.get("error"):
+    provider_error = request.GET.get("error")
+    saved = _pop_saved(request, platform, quiet=bool(provider_error))
+    if provider_error:
         description = request.GET.get("error_description") or ""
-        if platform == "instagram" and "permission" in description.lower():
+        if platform == "instagram" and "developer role" in description.lower():
+            messages.error(
+                request,
+                "Instagram only allows app testers while the Meta app is in Development. "
+                "In the Meta app, open Instagram, API setup with Instagram login, and add this Instagram username under Instagram testers. "
+                "Accept the invite in the Instagram app under Settings, Apps and websites, Tester invites, then connect again.",
+            )
+        elif platform == "instagram" and "permission" in description.lower():
             messages.error(
                 request,
                 "Instagram refused the permissions. Authorize with the Instagram account, then connect again.",
@@ -91,12 +158,11 @@ def oauth_callback(request, platform):
             )
         else:
             messages.error(request, description or f"{label} did not finish connecting.")
-        return redirect("networks:connections")
+        return _leave_callback(request, saved, "networks:connections")
+    if saved is None:
+        return _leave_callback(request, None, "networks:connections")
     try:
-        saved = pop_state(request, platform, request.GET.get("state", ""))
-        _resume_user(request, saved.get("user_id"))
-        if not is_creator(request.user):
-            raise PermissionDenied
+        user = _connect_user(request, saved)
         code = request.GET.get("code")
         if not code:
             raise ProviderError(f"{label} did not return an authorization code.")
@@ -108,10 +174,10 @@ def oauth_callback(request, platform):
         )
     except ProviderError as exc:
         messages.error(request, str(exc))
-        return redirect("networks:connections" if request.user.is_authenticated else "account_login")
+        return _leave_callback(request, saved, "networks:connections")
 
     account, _created = SocialAccount.objects.get_or_create(
-        user=request.user,
+        user=user,
         platform=platform,
     )
     if account.is_sample:
@@ -132,9 +198,9 @@ def oauth_callback(request, platform):
         account.last_error = str(exc)
         account.save(update_fields=["last_error"])
         messages.error(request, f"{label} is connected, but the first sync failed: {exc}")
-        return redirect("networks:connections")
+        return _leave_callback(request, saved, "networks:connections")
     messages.success(request, f"{label} is connected and the latest data is saved.")
-    return redirect("analytics:platform", platform=platform)
+    return _leave_callback(request, saved, "analytics:platform", kwargs={"platform": platform})
 
 
 @creator_required

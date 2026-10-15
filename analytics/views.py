@@ -6,6 +6,7 @@ from accounts.permissions import creator_required
 from analytics.services import build_content, build_dashboard, build_platform
 from networks.models import ContentItem, SocialAccount
 from networks.platforms import PLATFORMS
+from networks.views import consume_oauth_notices
 
 
 @creator_required
@@ -15,6 +16,7 @@ def dashboard(request):
 
 @creator_required
 def platform(request, platform):
+    consume_oauth_notices(request)
     if platform not in PLATFORMS:
         raise Http404
     account = SocialAccount.objects.filter(user=request.user, platform=platform).first()
