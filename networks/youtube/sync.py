@@ -5,11 +5,11 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.html import strip_tags
 
-from networks.fetchers import FetchedSnapshot
+from networks.fetchers import FetchedSnapshot, gender_slices
 from networks.http import ProviderError
 from networks.models import ContentItem
 from networks.oauth import ensure_access_token
-from networks.sync import _upsert_snapshot
+from networks.sync import _replace_breakdowns, _upsert_snapshot
 from networks.youtube.aggregates import recalculate_channel
 from networks.youtube.client import YouTubeAPIError, YouTubeClient
 from networks.youtube.parse import (
@@ -738,30 +738,14 @@ def _analytics_breakdowns(client, channel, start, end):
     queries = (
         ("insightTrafficSourceType", "views", "traffic_source"),
         ("country", "views", "country"),
+        ("country", "estimatedMinutesWatched", "country_watch_time"),
         ("deviceType", "views", "device"),
     )
     for dimension, metric, label in queries:
-        try:
-            report = client.analytics(
-                {
-                    "ids": "channel==MINE",
-                    "startDate": start.isoformat(),
-                    "endDate": end.isoformat(),
-                    "metrics": metric,
-                    "dimensions": dimension,
-                    "maxResults": 25,
-                    "sort": f"-{metric}",
-                }
-            )
-        except YouTubeAPIError as exc:
-            if exc.kind in {"unsupported", "permission", "unavailable"}:
-                logger.info("youtube_breakdown_skipped dimension=%s kind=%s", dimension, exc.kind)
-                continue
-            raise
-        for record in rows_from_report(report):
-            collected.append(
-                {"dimension": label, "segment": record.get(dimension), "value": record.get(metric)}
-            )
+        collected.extend(_breakdown_query(client, channel, start, end, dimension, metric, label))
+    collected.extend(_demographic_query(client, start, end, "gender", "gender"))
+    collected.extend(_demographic_query(client, start, end, "ageGroup", "age"))
+    collected.extend(_age_gender_query(client, start, end))
     snapshot, _created = save_snapshot(
         channel,
         video_key="",
@@ -771,6 +755,85 @@ def _analytics_breakdowns(client, channel, start, end):
         period_start=start,
     )
     replace_breakdowns(snapshot, collected)
+
+
+def _breakdown_query(client, channel, start, end, dimension, metric, label):
+    try:
+        report = client.analytics(
+            {
+                "ids": "channel==MINE",
+                "startDate": start.isoformat(),
+                "endDate": end.isoformat(),
+                "metrics": metric,
+                "dimensions": dimension,
+                "maxResults": 25,
+                "sort": f"-{metric}",
+            }
+        )
+    except YouTubeAPIError as exc:
+        if exc.kind in {"unsupported", "permission", "unavailable"}:
+            logger.info("youtube_breakdown_skipped dimension=%s metric=%s kind=%s", dimension, metric, exc.kind)
+            return []
+        raise
+    rows = []
+    for record in rows_from_report(report):
+        segment = record.get(dimension)
+        if segment in (None, ""):
+            continue
+        rows.append({"dimension": label, "segment": segment, "value": record.get(metric)})
+    return rows
+
+
+def _demographic_query(client, start, end, dimension, label):
+    """viewerPercentage is valid only with ageGroup and gender, and only as the sole metric."""
+    try:
+        report = client.analytics(
+            {
+                "ids": "channel==MINE",
+                "startDate": start.isoformat(),
+                "endDate": end.isoformat(),
+                "metrics": "viewerPercentage",
+                "dimensions": dimension,
+            }
+        )
+    except YouTubeAPIError as exc:
+        if exc.kind in {"unsupported", "permission", "unavailable"}:
+            logger.info("youtube_demographics_skipped dimension=%s kind=%s", dimension, exc.kind)
+            return []
+        raise
+    rows = []
+    for record in rows_from_report(report):
+        segment = record.get(dimension)
+        if segment in (None, ""):
+            continue
+        rows.append({"dimension": label, "segment": segment, "value": record.get("viewerPercentage")})
+    return rows
+
+
+def _age_gender_query(client, start, end):
+    try:
+        report = client.analytics(
+            {
+                "ids": "channel==MINE",
+                "startDate": start.isoformat(),
+                "endDate": end.isoformat(),
+                "metrics": "viewerPercentage",
+                "dimensions": "ageGroup,gender",
+            }
+        )
+    except YouTubeAPIError as exc:
+        if exc.kind in {"unsupported", "permission", "unavailable"}:
+            logger.info("youtube_demographics_skipped dimension=ageGroup,gender kind=%s", exc.kind)
+            return []
+        raise
+    rows = []
+    for record in rows_from_report(report):
+        age = record.get("ageGroup")
+        gender = record.get("gender")
+        if not age or not gender:
+            continue
+        rows.append({"dimension": "age_gender", "segment": f"{age}|{gender}", "value": record.get("viewerPercentage")})
+    return rows
 
 
 def _bulk_video_range(client, channel, start, end):
@@ -904,22 +967,47 @@ def _touch_account(account, channel, count):
 
 def _touch_dashboard(account, channel):
     if channel.subscriber_count is None and channel.view_count is None:
+        saved = None
+    else:
+        followers = channel.subscriber_count
+        if followers is None:
+            previous = account.snapshots.order_by("-captured_at").first()
+            followers = previous.followers if previous else 0
+        saved = _upsert_snapshot(
+            account,
+            FetchedSnapshot(
+                captured_at=timezone.now(),
+                followers=int(followers or 0),
+                content_count=int(channel.video_count or channel.videos.count()),
+                views=int(channel.view_count or 0),
+                likes=int(channel.summed_video_likes or 0),
+                comments=int(channel.summed_video_comments or 0),
+            ),
+        )
+    _publish_gender(account, channel, saved)
+
+
+def _publish_gender(account, channel, saved):
+    """Copy Analytics viewer share onto the studio snapshot as estimated audience counts."""
+    if saved is None or not channel.subscriber_count:
         return
-    followers = channel.subscriber_count
-    if followers is None:
-        previous = account.snapshots.order_by("-captured_at").first()
-        followers = previous.followers if previous else 0
-    _upsert_snapshot(
-        account,
-        FetchedSnapshot(
-            captured_at=timezone.now(),
-            followers=int(followers or 0),
-            content_count=int(channel.video_count or channel.videos.count()),
-            views=int(channel.view_count or 0),
-            likes=int(channel.summed_video_likes or 0),
-            comments=int(channel.summed_video_comments or 0),
-        ),
+    report = (
+        channel.snapshots.filter(video_key="", scope=ANALYTICS_RANGE)
+        .prefetch_related("breakdowns")
+        .order_by("-snapshot_date")
+        .first()
     )
+    if report is None:
+        return
+    counts = {}
+    for row in report.breakdowns.all():
+        if row.dimension != "gender" or row.value is None:
+            continue
+        counts[row.segment] = int(round(float(row.value) / 100 * int(channel.subscriber_count)))
+    slices = gender_slices(counts, basis="estimated")
+    if not slices:
+        return
+    _replace_breakdowns(saved, FetchedSnapshot(captured_at=timezone.now(), breakdowns=slices))
 
 
 def _primary(channels):

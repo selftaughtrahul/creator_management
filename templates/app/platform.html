@@ -112,6 +112,7 @@
       <p class="muted">One point is kept per day. Change is the difference from the previous saved day. A sync on the same day updates that point instead of adding another.</p>
       {% include "partials/snapshot_table.html" with history=history audience_label=meta.audience_label %}
     </section>
+    {% if platform != "youtube" or account.is_sample or not youtube %}
     <section class="panel">
       <h2>Audience demographics</h2>
       {% include "partials/demographics.html" with demographics=demographics %}
@@ -128,6 +129,7 @@
         </div>
       {% endif %}
     </section>
+    {% endif %}
     <section class="panel">
       <h2>Posts</h2>
       <div class="table-wrap">

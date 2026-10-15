@@ -239,6 +239,28 @@ class FakeYouTube:
                 ],
                 "rows": [[0.5, 0.25, 1]],
             }
+        if dimensions == "gender" and "viewerPercentage" in metrics:
+            return {
+                "columnHeaders": [{"name": "gender"}, {"name": "viewerPercentage"}],
+                "rows": [["female", 62], ["male", 35], ["user_specified", 3]],
+            }
+        if dimensions == "ageGroup" and "viewerPercentage" in metrics:
+            return {
+                "columnHeaders": [{"name": "ageGroup"}, {"name": "viewerPercentage"}],
+                "rows": [["age18-24", 40], ["age25-34", 60]],
+            }
+        if dimensions == "ageGroup,gender":
+            return {
+                "columnHeaders": [{"name": "ageGroup"}, {"name": "gender"}, {"name": "viewerPercentage"}],
+                "rows": [["age18-24", "female", 25], ["age25-34", "male", 20]],
+            }
+        if dimensions == "country" and "estimatedMinutesWatched" in metrics:
+            return {
+                "columnHeaders": [{"name": "country"}, {"name": "estimatedMinutesWatched"}],
+                "rows": [["IN", 120], ["US", 40]],
+            }
+        if dimensions == "country":
+            return {"columnHeaders": [{"name": "country"}, {"name": "views"}], "rows": [["IN", 80], ["US", 20]]}
         column = dimensions or "segment"
         return {"columnHeaders": [{"name": column}, {"name": "views"}], "rows": [["US", 4]]}
 
@@ -304,6 +326,17 @@ class YouTubeSyncTests(TestCase):
         self.assertIsNone(channel.snapshots.filter(scope="analytics_daily", video_key="").first().estimated_revenue)
         self.assertFalse(channel.revenue_authorized)
         self.assertTrue(channel.analytics_authorized)
+        report = channel.snapshots.filter(scope="analytics_range", video_key="").first()
+        self.assertEqual(report.breakdowns.get(dimension="gender", segment="female").value, 62)
+        self.assertEqual(report.breakdowns.get(dimension="age", segment="age18-24").value, 40)
+        self.assertEqual(report.breakdowns.get(dimension="age_gender", segment="age18-24|female").value, 25)
+        self.assertEqual(report.breakdowns.get(dimension="country", segment="IN").value, 80)
+        self.assertEqual(report.breakdowns.get(dimension="country_watch_time", segment="IN").value, 120)
+        from networks.models import AudienceBreakdown
+
+        female = AudienceBreakdown.objects.get(snapshot__account=self.account, dimension="gender", segment="female")
+        self.assertEqual(female.count, 9)
+        self.assertEqual(female.basis, "estimated")
         self.assertFalse(any("videoplayback" in url or url.rstrip("/").endswith("/download") for url, _params in self.fake.calls))
         playlist_calls = [params for url, params in self.fake.calls if "playlistItems" in url]
         self.assertEqual(len(playlist_calls), 2)
@@ -552,8 +585,31 @@ class YouTubeApiTests(TestCase):
         self.channel.summed_video_views = 20
         self.channel.sync_status = "succeeded"
         self.channel.save()
+        from networks.youtube.snapshots import replace_breakdowns, save_snapshot
+
+        report, _created = save_snapshot(
+            self.channel,
+            snapshot_date=timezone.localdate(),
+            scope="analytics_range",
+            source="youtube_analytics_api",
+            period_start=timezone.localdate(),
+        )
+        replace_breakdowns(
+            report,
+            [
+                {"dimension": "gender", "segment": "female", "value": 62},
+                {"dimension": "age", "segment": "age18-24", "value": 40},
+                {"dimension": "age_gender", "segment": "age18-24|female", "value": 25},
+                {"dimension": "country", "segment": "IN", "value": 80},
+                {"dimension": "country_watch_time", "segment": "IN", "value": 120},
+            ],
+        )
         page = self.client.get(reverse("analytics:platform", args=["youtube"]))
         self.assertContains(page, "YouTube library")
+        self.assertContains(page, "Female")
+        self.assertContains(page, "18–24")
+        self.assertContains(page, "India")
+        self.assertContains(page, "18–24 · Female")
         self.assertContains(page, "Official channel views")
         self.assertContains(page, "999")
         self.assertContains(page, "Catalog views")
