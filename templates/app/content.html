@@ -18,6 +18,10 @@
       <a class="btn-line" href="{{ item.url }}" rel="noreferrer">Open original</a>
     {% endif %}
   </div>
+  {% if youtube %}
+    {% include "partials/youtube_video.html" %}
+    <p class="muted">The cards above are the YouTube sync. The studio charts below use the saved post row, which cannot store a missing count as empty.</p>
+  {% endif %}
   <section class="stat-grid">
     <article class="stat"><span class="label">Views</span><strong>{{ item.views|intcomma }}</strong><em>{{ share }}% of saved {{ meta.label }} views</em></article>
     <article class="stat"><span class="label">Likes</span><strong>{{ item.likes|intcomma }}</strong></article>

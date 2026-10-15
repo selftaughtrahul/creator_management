@@ -1,6 +1,14 @@
 from django.contrib import admin
 
 from networks.models import AudienceBreakdown, ContentItem, MetricSnapshot, SocialAccount
+from networks.youtube_models import (
+    YouTubeChannel,
+    YouTubeSnapshot,
+    YouTubeSyncJob,
+    YouTubeTranscript,
+    YouTubeVideo,
+    YouTubeVideoComment,
+)
 
 
 class SnapshotInline(admin.TabularInline):
@@ -35,6 +43,45 @@ class AudienceBreakdownAdmin(admin.ModelAdmin):
     list_display = ("snapshot", "dimension", "label", "count", "basis")
     list_filter = ("dimension", "basis", "snapshot__account__platform")
     search_fields = ("label", "segment")
+
+
+@admin.register(YouTubeChannel)
+class YouTubeChannelAdmin(admin.ModelAdmin):
+    list_display = ("title", "channel_id", "account", "sync_status", "subscriber_count", "last_success_at")
+    search_fields = ("title", "channel_id", "custom_url")
+    list_filter = ("sync_status", "reauthorization_required")
+
+
+@admin.register(YouTubeVideo)
+class YouTubeVideoAdmin(admin.ModelAdmin):
+    list_display = ("title", "video_id", "channel", "privacy_status", "view_count", "published_at")
+    search_fields = ("title", "video_id")
+    list_filter = ("privacy_status", "availability")
+
+
+@admin.register(YouTubeVideoComment)
+class YouTubeVideoCommentAdmin(admin.ModelAdmin):
+    list_display = ("comment_id", "video", "author_display_name", "like_count", "is_reply", "published_at")
+    search_fields = ("comment_id", "author_display_name", "text")
+
+
+@admin.register(YouTubeTranscript)
+class YouTubeTranscriptAdmin(admin.ModelAdmin):
+    list_display = ("video", "language", "source", "status", "last_success_at")
+    list_filter = ("status", "source")
+    search_fields = ("video__video_id", "language", "track_name")
+
+
+@admin.register(YouTubeSnapshot)
+class YouTubeSnapshotAdmin(admin.ModelAdmin):
+    list_display = ("channel", "video_key", "snapshot_date", "scope", "views", "source")
+    list_filter = ("scope", "source")
+
+
+@admin.register(YouTubeSyncJob)
+class YouTubeSyncJobAdmin(admin.ModelAdmin):
+    list_display = ("id", "account", "mode", "status", "outcome", "videos_upserted", "created_at")
+    list_filter = ("status", "outcome", "mode")
 
 
 @admin.register(ContentItem)

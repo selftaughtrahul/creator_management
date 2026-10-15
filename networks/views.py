@@ -15,6 +15,7 @@ from networks.demo import connect_sample
 from networks.http import ProviderError
 from networks.models import SocialAccount
 from networks.oauth import begin_authorize, exchange_code, pop_state
+from networks.tokenbox import seal
 from networks.platforms import PLATFORMS, oauth_ready
 from networks.sync import sync_account
 
@@ -27,6 +28,8 @@ def _platform(key):
 
 def _redirect_uri(request, platform):
     redirect_uri = request.build_absolute_uri(reverse("networks:oauth_callback", args=[platform]))
+    if platform == "youtube" and settings.YOUTUBE_REDIRECT_URI:
+        return settings.YOUTUBE_REDIRECT_URI
     if platform == "instagram" and settings.INSTAGRAM_REDIRECT_URI:
         return settings.INSTAGRAM_REDIRECT_URI
     if platform == "facebook" and settings.FACEBOOK_REDIRECT_URI:
@@ -105,15 +108,21 @@ def _connect_user(request, saved):
 @creator_required
 def connections(request):
     consume_oauth_notices(request)
-    accounts = {account.platform: account for account in request.user.social_accounts.all()}
+    accounts = {
+        account.platform: account
+        for account in request.user.social_accounts.prefetch_related("youtube_channels", "youtube_sync_jobs")
+    }
     cards = []
     for key, meta in PLATFORMS.items():
+        account = accounts.get(key)
+        jobs = list(account.youtube_sync_jobs.all()) if account and key == "youtube" else []
         cards.append(
             {
                 "key": key,
                 "meta": meta,
-                "account": accounts.get(key),
+                "account": account,
                 "ready": oauth_ready(key),
+                "youtube_job": jobs[0] if jobs else None,
             }
         )
     return render(request, "app/connections.html", {"cards": cards})
@@ -184,14 +193,34 @@ def oauth_callback(request, platform):
         account.snapshots.all().delete()
         account.contents.all().delete()
     account.is_sample = False
-    account.access_token = token.get("access_token", "")
+    account.access_token = seal(token.get("access_token", ""))
     if token.get("refresh_token"):
-        account.refresh_token = token["refresh_token"]
+        account.refresh_token = seal(token["refresh_token"])
     expires_in = token.get("expires_in")
     if expires_in:
         account.token_expires_at = timezone.now() + timedelta(seconds=int(expires_in))
     account.last_error = ""
     account.save()
+    if platform == "youtube":
+        from networks.youtube.jobs import enqueue_youtube_sync, maybe_run
+
+        job = enqueue_youtube_sync(
+            account,
+            mode="full",
+            requested_by=user,
+            scopes=token.get("scope") or "",
+        )
+        if settings.YOUTUBE_SYNC_EAGER:
+            maybe_run(job)
+            if job.status in {"completed", "partial"}:
+                messages.success(request, f"{label} is connected and the YouTube sync is saved.")
+            else:
+                messages.error(
+                    request,
+                    f"{label} is connected, but the sync did not finish. {job.last_error}",
+                )
+            return _leave_callback(request, saved, "analytics:platform", kwargs={"platform": platform})
+        messages.info(request, "A full YouTube sync is queued. Run process_youtube_jobs to finish it.")
     try:
         sync_account(account)
     except ProviderError as exc:
@@ -219,11 +248,32 @@ def load_sample(request, platform):
     return redirect("analytics:platform", platform=platform)
 
 
+def _queue_youtube(request, account, mode):
+    from networks.youtube.jobs import enqueue_youtube_sync, maybe_run
+
+    job = enqueue_youtube_sync(account, mode=mode, requested_by=request.user)
+    if settings.YOUTUBE_SYNC_EAGER:
+        maybe_run(job)
+        if job.status == "completed":
+            messages.success(request, "YouTube sync finished.")
+        elif job.status == "partial":
+            messages.warning(request, job.last_error or "YouTube sync finished with some sections skipped.")
+        else:
+            messages.error(request, job.last_error or "YouTube sync failed.")
+        return True
+    messages.success(request, "YouTube sync is queued. Run process_youtube_jobs to finish it.")
+    return False
+
+
 @creator_required
 @require_POST
 def sync(request, platform):
     platform = _platform(platform)
     account = get_object_or_404(SocialAccount, user=request.user, platform=platform)
+    if platform == "youtube" and not account.is_sample:
+        mode = "full" if request.POST.get("mode") == "full" else "incremental"
+        if _queue_youtube(request, account, mode):
+            return redirect("networks:connections")
     try:
         sync_account(account)
     except ProviderError as exc:
@@ -231,7 +281,8 @@ def sync(request, platform):
         account.save(update_fields=["last_error"])
         messages.error(request, str(exc))
     else:
-        messages.success(request, f"{PLATFORMS[platform]['label']} updated.")
+        if not (platform == "youtube" and not account.is_sample):
+            messages.success(request, f"{PLATFORMS[platform]['label']} updated.")
     return redirect("networks:connections")
 
 
@@ -242,7 +293,12 @@ def sync_all(request):
     synced = 0
     for account in request.user.social_accounts.all():
         try:
-            sync_account(account)
+            if account.platform == "youtube" and not account.is_sample:
+                queued_only = not _queue_youtube(request, account, "incremental")
+                if queued_only:
+                    sync_account(account)
+            else:
+                sync_account(account)
             synced += 1
         except ProviderError as exc:
             account.last_error = str(exc)

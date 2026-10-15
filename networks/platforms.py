@@ -37,7 +37,9 @@ OAUTH = {
         "token_url": "https://oauth2.googleapis.com/token",
         "scopes": (
             "https://www.googleapis.com/auth/youtube.readonly",
+            "https://www.googleapis.com/auth/youtube.force-ssl",
             "https://www.googleapis.com/auth/yt-analytics.readonly",
+            "https://www.googleapis.com/auth/yt-analytics-monetary.readonly",
         ),
         "extra": {
             "access_type": "offline",

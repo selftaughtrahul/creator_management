@@ -1,0 +1,132 @@
+{% load humanize %}
+{% with video=youtube.video %}
+  <section class="stat-grid">
+    <article class="stat">
+      <span class="label">Views</span>
+      <strong>{% if video.view_count is None %}Unavailable{% else %}{{ video.view_count|intcomma }}{% endif %}</strong>
+      <em>Public video statistic</em>
+    </article>
+    <article class="stat">
+      <span class="label">Likes</span>
+      <strong>{% if video.like_count is None %}Unavailable{% else %}{{ video.like_count|intcomma }}{% endif %}</strong>
+    </article>
+    <article class="stat">
+      <span class="label">Comments</span>
+      <strong>{% if video.comment_count is None %}Unavailable{% else %}{{ video.comment_count|intcomma }}{% endif %}</strong>
+      <em>{{ video.comments_sync_status|default:"not synced" }}</em>
+    </article>
+    <article class="stat">
+      <span class="label">Duration</span>
+      <strong style="font-size:28px">{% if youtube.duration_label %}{{ youtube.duration_label }}{% else %}Unavailable{% endif %}</strong>
+      <em>{% if video.duration_iso %}{{ video.duration_iso }}{% else %}Length, not watch time{% endif %}</em>
+    </article>
+  </section>
+  <section class="panel">
+    <h2>Video details</h2>
+    <p class="muted">
+      {{ video.video_id }}
+      {% if video.privacy_status %}· {{ video.privacy_status }}{% else %}· privacy unknown{% endif %}
+      {% if video.category_id %}· category {{ video.category_id }}{% endif %}
+      {% if video.default_language %}· {{ video.default_language }}{% endif %}
+      {% if video.live_broadcast_status %}· {{ video.live_broadcast_status }}{% endif %}
+    </p>
+    <p class="muted">
+      Embeddable {% if video.embeddable is None %}unknown{% elif video.embeddable %}yes{% else %}no{% endif %}.
+      Made for kids {% if video.made_for_kids is None %}unknown{% elif video.made_for_kids %}yes{% else %}no{% endif %}.
+      {% if video.favorite_count is None %}Favorites unavailable.{% else %}Favorites {{ video.favorite_count }}.{% endif %}
+    </p>
+    {% if video.tags %}<p class="muted">Tags: {{ video.tags|join:", " }}</p>{% endif %}
+    {% if video.comments_sync_error %}<p class="error-text">{{ video.comments_sync_error }}</p>{% endif %}
+  </section>
+  <section class="panel">
+    <h2>Comments</h2>
+    <p class="muted">{{ youtube.comment_total }} saved. Showing the latest {{ youtube.comments|length }}.</p>
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Author</th><th>Comment</th><th>Likes</th><th>When</th></tr></thead>
+        <tbody>
+          {% for comment in youtube.comments %}
+            <tr>
+              <td>
+                {{ comment.author_display_name|default:"Unknown" }}
+                {% if comment.is_reply %}<span class="muted">reply</span>{% endif %}
+              </td>
+              <td>{{ comment.text }}</td>
+              <td>{% if comment.like_count is None %}Unavailable{% else %}{{ comment.like_count }}{% endif %}</td>
+              <td>{% if comment.published_at %}{{ comment.published_at|date:"d M Y" }}{% else %}—{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4">{% if video.comments_sync_status == "failed" %}Comments could not be synced.{% elif video.comments_sync_status == "disabled" %}Comments are disabled.{% else %}No comments saved.{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Transcripts</h2>
+    {% for transcript in youtube.transcripts %}
+      <article class="snapshot-block">
+        <h3>{{ transcript.language }} · {{ transcript.get_status_display }}</h3>
+        <p class="muted">
+          {{ transcript.source }}
+          {% if transcript.track_name %}· {{ transcript.track_name }}{% endif %}
+          {% if transcript.caption_kind %}· {{ transcript.caption_kind }}{% endif %}
+          {% if transcript.last_success_at %}· saved {{ transcript.last_success_at|naturaltime }}{% endif %}
+        </p>
+        {% if transcript.failure_reason %}<p class="error-text">{{ transcript.failure_reason }}</p>{% endif %}
+        {% if transcript.text %}
+          <pre class="transcript">{{ transcript.text }}</pre>
+        {% else %}
+          <p class="muted">No transcript text stored for this track.</p>
+        {% endif %}
+      </article>
+    {% empty %}
+      <p class="muted">No transcript has been retrieved for this video.</p>
+    {% endfor %}
+  </section>
+  <section class="panel">
+    <h2>Video analytics</h2>
+    <p class="muted">Public counters and Analytics rows are listed separately. A blank cell was not returned.</p>
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th>Date</th><th>Scope</th><th>Views</th><th>Watch time (min)</th><th>Likes</th><th>Comments</th><th>Source</th></tr>
+        </thead>
+        <tbody>
+          {% for row in youtube.analytics %}
+            <tr>
+              <td>{{ row.snapshot_date|date:"d M Y" }}</td>
+              <td>{{ row.get_scope_display }}{% if row.counter_reset %} · counter reset{% endif %}</td>
+              <td>{% if row.views is None %}Unavailable{% else %}{{ row.views|intcomma }}{% endif %}</td>
+              <td>{% if row.watch_time_minutes is None %}Unavailable{% else %}{{ row.watch_time_minutes|floatformat:1 }}{% endif %}</td>
+              <td>{% if row.likes is None %}Unavailable{% else %}{{ row.likes|intcomma }}{% endif %}</td>
+              <td>{% if row.comments is None %}Unavailable{% else %}{{ row.comments|intcomma }}{% endif %}</td>
+              <td>{{ row.source }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7">No video analytics saved.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if youtube.retention %}
+      <h3>Audience retention</h3>
+      <p class="muted">{{ youtube.retention.period_start|date:"d M Y" }} – {{ youtube.retention.snapshot_date|date:"d M Y" }}</p>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Elapsed</th><th>Still watching</th></tr></thead>
+          <tbody>
+            {% for point in youtube.retention.breakdowns.all %}
+              <tr>
+                <td>{{ point.segment }}</td>
+                <td>{% if point.value is None %}Unavailable{% else %}{{ point.value }}{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="2">Retention was requested and no points were returned.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </section>
+{% endwith %}

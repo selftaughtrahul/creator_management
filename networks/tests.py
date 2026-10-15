@@ -3,6 +3,7 @@ from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
@@ -100,6 +101,18 @@ class SampleConnectionTests(TestCase):
         self.assertNotIn("facebook.com", response.url)
         self.assertNotIn("config_id", response.url)
 
+    def test_instagram_root_redirect_is_forwarded_to_the_callback(self):
+        cache.set(
+            "oauth-state-abc",
+            {"platform": "instagram", "state": "abc", "redirect_uri": "https://example.com/", "user_id": self.user.pk},
+            60,
+        )
+        response = self.client.get("/?code=xyz&state=abc")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/connections/instagram/callback/", response.url)
+        self.assertIn("code=xyz", response.url)
+        self.assertIn("state=abc", response.url)
+
     @override_settings(META_APP_ID="app", META_APP_SECRET="secret", DEBUG=True, FACEBOOK_REDIRECT_URI="")
     def test_facebook_callback_returns_to_the_host_that_started_it(self):
         employee = User.objects.create_user(
@@ -127,7 +140,10 @@ class SampleConnectionTests(TestCase):
         self.assertTrue(response.url.startswith("http://127.0.0.1:8000/analytics/facebook/"))
         account = SocialAccount.objects.get(platform="facebook")
         self.assertEqual(account.user, self.user)
-        self.assertEqual(account.access_token, "tok")
+        from networks.tokenbox import unseal
+
+        self.assertEqual(unseal(account.access_token), "tok")
+        self.assertNotEqual(account.access_token, "tok")
         self.assertEqual(int(self.client.session["_auth_user_id"]), employee.pk)
 
         landing = Client()
@@ -197,3 +213,6 @@ class SampleConnectionTests(TestCase):
         response = self.client.get(reverse("analytics:dashboard"))
         self.assertEqual(response.status_code, 302)
         self.assertIn("/accounts/login/", response.url)
+
+
+from networks.youtube_tests import YouTubeApiTests, YouTubeClientTests, YouTubeSyncTests  # noqa: E402,F401

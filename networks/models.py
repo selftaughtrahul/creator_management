@@ -163,3 +163,14 @@ def reaction_rate(reactions, views=0, impressions=0):
     if not base:
         return 0
     return round(reactions / base * 100, 1)
+
+
+from networks.youtube_models import (  # noqa: E402,F401
+    YouTubeAnalyticsBreakdown,
+    YouTubeChannel,
+    YouTubeSnapshot,
+    YouTubeSyncJob,
+    YouTubeTranscript,
+    YouTubeVideo,
+    YouTubeVideoComment,
+)

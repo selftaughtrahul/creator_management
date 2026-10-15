@@ -699,6 +699,15 @@ tr.metrics-slot .collapse.show { padding: 8px 0 12px; }
 .swatch-jade { background: linear-gradient(135deg, #b7e4cf, #0f5c44); }
 .swatch-dusk { background: linear-gradient(135deg, #d9cef4, #3d2d78); }
 .swatch-rouge { background: linear-gradient(135deg, #f3c5d0, #6e2c40); }
+.transcript {
+  white-space: pre-wrap;
+  max-height: 280px;
+  overflow: auto;
+  margin: 8px 0 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--notice-bg);
+}
 
 @media (max-width: 991px) {
   .auth-shell, .hero, .app-shell, .stat-grid, .two-col, .card-grid, .detail-grid, .page-head { grid-template-columns: 1fr; }

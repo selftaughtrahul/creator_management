@@ -7,6 +7,7 @@ from analytics.services import build_content, build_dashboard, build_platform
 from networks.models import ContentItem, SocialAccount
 from networks.platforms import PLATFORMS
 from networks.views import consume_oauth_notices
+from networks.youtube.present import platform_context, video_context
 
 
 @creator_required
@@ -24,6 +25,8 @@ def platform(request, platform):
     if account:
         context.update(build_platform(account))
         context["page"] = Paginator(account.contents.all(), 8).get_page(request.GET.get("page"))
+        if platform == "youtube":
+            context["youtube"] = platform_context(account, request.GET.get("yt_page"))
     return render(request, "app/platform.html", context)
 
 
@@ -34,4 +37,7 @@ def content(request, pk):
         pk=pk,
         account__user=request.user,
     )
-    return render(request, "app/content.html", build_content(item))
+    context = build_content(item)
+    if item.account.platform == "youtube":
+        context["youtube"] = video_context(item)
+    return render(request, "app/content.html", context)

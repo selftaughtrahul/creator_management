@@ -3,6 +3,7 @@ from django.core.management.base import BaseCommand
 from networks.http import ProviderError
 from networks.models import SocialAccount
 from networks.sync import sync_account
+from networks.youtube.jobs import enqueue_youtube_sync, process_youtube_job
 
 
 class Command(BaseCommand):
@@ -16,7 +17,13 @@ class Command(BaseCommand):
         for account in accounts:
             label = f"{account.user.email} · {account.platform}"
             try:
-                sync_account(account)
+                if account.platform == "youtube" and not account.is_sample and account.has_token:
+                    job = enqueue_youtube_sync(account, mode="incremental")
+                    process_youtube_job(job)
+                    if job.status not in {"completed", "partial"}:
+                        raise ProviderError(job.last_error or "YouTube sync did not finish.")
+                else:
+                    sync_account(account)
             except ProviderError as exc:
                 account.last_error = str(exc)
                 account.save(update_fields=["last_error"])

@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from networks.http import ProviderError, api_get, api_post, graph
 from networks.platforms import OAUTH, graph_version
+from networks.tokenbox import seal, unseal
 
 
 def begin_authorize(request, platform, redirect_uri):
@@ -101,7 +102,7 @@ def ensure_access_token(account):
     expired = account.token_expires_at and account.token_expires_at <= timezone.now() + timedelta(minutes=2)
     if expired:
         _refresh(account)
-    return account.access_token
+    return unseal(account.access_token)
 
 
 def _extend_meta_token(payload):
@@ -145,38 +146,44 @@ def _instagram_token(payload):
 
 
 def _refresh(account):
+    access_token = unseal(account.access_token)
+    refresh_token = unseal(account.refresh_token)
     if account.platform == "instagram":
         payload = api_get(
             "https://graph.instagram.com/refresh_access_token",
-            params={"grant_type": "ig_refresh_token", "access_token": account.access_token},
+            params={"grant_type": "ig_refresh_token", "access_token": access_token},
         )
     elif account.platform == "youtube":
-        if not account.refresh_token:
+        if not refresh_token:
             raise ProviderError("The YouTube permission expired. Connect YouTube again.")
         payload = api_post(
             OAUTH["youtube"]["token_url"],
             data={
                 "client_id": settings.YOUTUBE_CLIENT_ID,
                 "client_secret": settings.YOUTUBE_CLIENT_SECRET,
-                "refresh_token": account.refresh_token,
+                "refresh_token": refresh_token,
                 "grant_type": "refresh_token",
             },
         )
-    elif account.platform == "twitter" and account.refresh_token:
+        if payload.get("scope"):
+            from networks.youtube.jobs import store_granted_scopes
+
+            store_granted_scopes(account, payload["scope"])
+    elif account.platform == "twitter" and refresh_token:
         payload = api_post(
             OAUTH["twitter"]["token_url"],
             data={
                 "client_id": settings.TWITTER_CLIENT_ID,
-                "refresh_token": account.refresh_token,
+                "refresh_token": refresh_token,
                 "grant_type": "refresh_token",
             },
             headers=_twitter_basic_headers(),
         )
     else:
         raise ProviderError("This connection expired. Connect it again to keep syncing.")
-    account.access_token = payload["access_token"]
+    account.access_token = seal(payload["access_token"])
     if payload.get("refresh_token"):
-        account.refresh_token = payload["refresh_token"]
+        account.refresh_token = seal(payload["refresh_token"])
     if payload.get("expires_in"):
         account.token_expires_at = timezone.now() + timedelta(seconds=int(payload["expires_in"]))
     account.save(update_fields=["access_token", "refresh_token", "token_expires_at"])

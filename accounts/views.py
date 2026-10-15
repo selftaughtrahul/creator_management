@@ -18,6 +18,17 @@ from accounts.permissions import home_url, is_creator, is_staff_role, superuser_
 
 
 def home(request):
+    # Instagram only accepts the redirect URI saved in Business login settings.
+    # That URI is the site root, so the code returns here and is forwarded.
+    state = request.GET.get("state")
+    if state and (request.GET.get("code") or request.GET.get("error")):
+        from django.core.cache import cache
+
+        saved = cache.get(f"oauth-state-{state}")
+        platform = (saved or {}).get("platform")
+        if platform:
+            target = reverse("networks:oauth_callback", args=[platform])
+            return redirect(f"{target}?{request.GET.urlencode()}")
     if request.user.is_authenticated:
         return redirect(home_url(request.user))
     return render(request, "marketing/home.html")

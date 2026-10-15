@@ -32,6 +32,17 @@
           </p>
           {% if card.account.status_note %}<p class="muted">{{ card.account.status_note }}</p>{% endif %}
           {% if card.account.last_error %}<p class="error-text">{{ card.account.last_error }}</p>{% endif %}
+          {% if card.key == "youtube" %}
+            {% for channel in card.account.youtube_channels.all %}
+              <p class="muted">
+                {{ channel.title|default:channel.channel_id }} · sync {{ channel.get_sync_status_display|lower }}
+                {% if channel.video_count is not None %}· {{ channel.video_count }} videos{% endif %}
+              </p>
+            {% endfor %}
+            {% if card.youtube_job %}
+              <p class="muted">Deep sync {{ card.youtube_job.get_status_display|lower }}{% if card.youtube_job.outcome %} · {{ card.youtube_job.get_outcome_display }}{% endif %}</p>
+            {% endif %}
+          {% endif %}
         {% elif not card.ready %}
           <p class="muted">Live connect needs API keys in <code>.env</code>. Sample data works without them.</p>
         {% endif %}

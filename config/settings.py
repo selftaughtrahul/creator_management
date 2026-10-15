@@ -135,6 +135,25 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 YOUTUBE_CLIENT_ID = os.environ.get("YOUTUBE_CLIENT_ID", "") or GOOGLE_CLIENT_ID
 YOUTUBE_CLIENT_SECRET = os.environ.get("YOUTUBE_CLIENT_SECRET", "") or GOOGLE_CLIENT_SECRET
+YOUTUBE_REDIRECT_URI = os.environ.get("YOUTUBE_REDIRECT_URI", "")
+YOUTUBE_SYNC_EAGER = os.environ.get("YOUTUBE_SYNC_EAGER", "0") == "1"
+YOUTUBE_MAX_VIDEOS = int(os.environ.get("YOUTUBE_MAX_VIDEOS", "2000") or "2000")
+YOUTUBE_INCREMENTAL_VIDEOS = int(os.environ.get("YOUTUBE_INCREMENTAL_VIDEOS", "100") or "100")
+YOUTUBE_COMMENT_LIMIT = int(os.environ.get("YOUTUBE_COMMENT_LIMIT", "100") or "100")
+YOUTUBE_COMMENT_VIDEO_LIMIT = int(os.environ.get("YOUTUBE_COMMENT_VIDEO_LIMIT", "15") or "15")
+YOUTUBE_FULL_COMMENT_VIDEO_LIMIT = int(os.environ.get("YOUTUBE_FULL_COMMENT_VIDEO_LIMIT", "40") or "40")
+YOUTUBE_TRANSCRIPT_VIDEO_LIMIT = int(os.environ.get("YOUTUBE_TRANSCRIPT_VIDEO_LIMIT", "10") or "10")
+YOUTUBE_FULL_TRANSCRIPT_VIDEO_LIMIT = int(os.environ.get("YOUTUBE_FULL_TRANSCRIPT_VIDEO_LIMIT", "20") or "20")
+YOUTUBE_ANALYTICS_DAYS = int(os.environ.get("YOUTUBE_ANALYTICS_DAYS", "28") or "28")
+YOUTUBE_VIDEO_ANALYTICS_LIMIT = int(os.environ.get("YOUTUBE_VIDEO_ANALYTICS_LIMIT", "25") or "25")
+YOUTUBE_RETENTION_VIDEO_LIMIT = int(os.environ.get("YOUTUBE_RETENTION_VIDEO_LIMIT", "5") or "5")
+YOUTUBE_HTTP_TIMEOUT = float(os.environ.get("YOUTUBE_HTTP_TIMEOUT", "25") or "25")
+YOUTUBE_MAX_RETRIES = int(os.environ.get("YOUTUBE_MAX_RETRIES", "3") or "3")
+YOUTUBE_JOB_MAX_ATTEMPTS = int(os.environ.get("YOUTUBE_JOB_MAX_ATTEMPTS", "3") or "3")
+YOUTUBE_JOB_BATCH_SIZE = int(os.environ.get("YOUTUBE_JOB_BATCH_SIZE", "5") or "5")
+YOUTUBE_STALE_MINUTES = int(os.environ.get("YOUTUBE_STALE_MINUTES", "30") or "30")
+YOUTUBE_TRANSCRIPT_PROVIDER_URL = os.environ.get("YOUTUBE_TRANSCRIPT_PROVIDER_URL", "")
+YOUTUBE_TRANSCRIPT_PROVIDER_TOKEN = os.environ.get("YOUTUBE_TRANSCRIPT_PROVIDER_TOKEN", "")
 META_APP_ID = os.environ.get("META_APP_ID", "")
 META_APP_SECRET = os.environ.get("META_APP_SECRET", "")
 META_GRAPH_VERSION = os.environ.get("META_GRAPH_VERSION", "v23.0")
@@ -194,5 +213,6 @@ LOGGING = {
     "loggers": {
         "creators": {"handlers": ["console"], "level": "INFO"},
         "campaigns": {"handlers": ["console"], "level": "INFO"},
+        "networks": {"handlers": ["console"], "level": "INFO"},
     },
 }

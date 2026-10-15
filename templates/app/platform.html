@@ -29,8 +29,25 @@
           {% csrf_token %}
           <button class="btn-line" type="submit">Sync</button>
         </form>
+        {% if platform == "youtube" and not account.is_sample and account.has_token %}
+          <form method="post" action="{% url 'networks:sync' account.platform %}">
+            {% csrf_token %}
+            <input type="hidden" name="mode" value="full">
+            <button class="btn-line" type="submit">Full sync</button>
+          </form>
+        {% endif %}
       </div>
     </div>
+    {% if platform == "youtube" and not account.is_sample %}
+      {% if youtube %}
+        {% include "partials/youtube_platform.html" %}
+      {% else %}
+        <section class="panel">
+          <h2>YouTube library</h2>
+          <p class="muted">No deep sync is saved yet. Full sync loads the channel, videos, comments, transcripts, and authorized analytics onto this page.</p>
+        </section>
+      {% endif %}
+    {% endif %}
     <section class="panel">
       <h2>All data</h2>
       <p class="muted">This account from the latest snapshot and posts from the last 30 days.</p>

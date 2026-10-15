@@ -1,0 +1,252 @@
+{% load humanize %}
+<section class="panel">
+  <h2>YouTube library</h2>
+  <p class="muted">Official channel totals come from the Data API. Catalog totals are added up from synced videos. Watch time appears only when Analytics returned it.</p>
+  {% if youtube.job %}
+    <p class="muted">
+      Latest sync: {{ youtube.job.job.get_mode_display|lower }}, {{ youtube.job.job.get_status_display|lower }}
+      {% if youtube.job.job.outcome %}· {{ youtube.job.job.get_outcome_display }}{% endif %}
+      {% if youtube.job.job.finished_at %}· {{ youtube.job.job.finished_at|naturaltime }}{% endif %}
+      · {{ youtube.job.job.videos_upserted }} videos · {{ youtube.job.job.quota_units }} Data API units
+    </p>
+    {% if youtube.job.job.last_error %}<p class="error-text">{{ youtube.job.job.last_error }}</p>{% endif %}
+  {% endif %}
+</section>
+{% for block in youtube.channels %}
+  {% with channel=block.channel %}
+    <section class="panel">
+      <h2>{{ channel.title|default:channel.channel_id }}</h2>
+      <p class="muted">
+        {{ channel.channel_id }}
+        {% if channel.custom_url %}· {{ channel.custom_url }}{% endif %}
+        {% if channel.country %}· {{ channel.country }}{% endif %}
+        {% if channel.published_at %}· created {{ channel.published_at|date:"d M Y" }}{% endif %}
+      </p>
+      {% if channel.description %}<p>{{ channel.description }}</p>{% endif %}
+      <p class="muted">
+        Sync {{ channel.get_sync_status_display|lower }}
+        {% if channel.last_success_at %}· last success {{ channel.last_success_at|naturaltime }}{% endif %}
+        · source {{ channel.data_source }}
+        {% if channel.uploads_playlist_id %}· uploads {{ channel.uploads_playlist_id }}{% endif %}
+      </p>
+      {% if channel.reauthorization_required %}
+        <p class="error-text">YouTube needs to be connected again before locked sections can be read.</p>
+      {% endif %}
+      {% if channel.last_error %}<p class="error-text">{{ channel.last_error }}</p>{% endif %}
+      {% if channel.analytics_authorized == False %}
+        <p class="muted">Analytics were not retrieved. The granted permissions do not include YouTube Analytics.</p>
+      {% endif %}
+    </section>
+    <section class="stat-grid">
+      <article class="stat">
+        <span class="label">Subscribers</span>
+        <strong>{% if channel.subscriber_count_hidden or channel.subscriber_count is None %}Hidden{% else %}{{ channel.subscriber_count|intcomma }}{% endif %}</strong>
+      </article>
+      <article class="stat">
+        <span class="label">Official channel views</span>
+        <strong>{% if channel.view_count is None %}Unavailable{% else %}{{ channel.view_count|intcomma }}{% endif %}</strong>
+        <em>Reported by YouTube for the channel</em>
+      </article>
+      <article class="stat">
+        <span class="label">Catalog views</span>
+        <strong>{% if channel.summed_video_views is None %}Unavailable{% else %}{{ channel.summed_video_views|intcomma }}{% endif %}</strong>
+        <em>Sum of synced video views</em>
+      </article>
+      <article class="stat">
+        <span class="label">Videos</span>
+        <strong>{% if channel.video_count is None %}Unavailable{% else %}{{ channel.video_count|intcomma }}{% endif %}</strong>
+        <em>Official video count</em>
+      </article>
+    </section>
+    <section class="stat-grid">
+      <article class="stat">
+        <span class="label">Catalog duration</span>
+        <strong style="font-size:28px">{% if block.duration_label %}{{ block.duration_label }}{% else %}Unavailable{% endif %}</strong>
+        <em>Length of synced videos, not watch time</em>
+      </article>
+      <article class="stat">
+        <span class="label">Average duration</span>
+        <strong style="font-size:28px">{% if block.average_duration_label %}{{ block.average_duration_label }}{% else %}Unavailable{% endif %}</strong>
+      </article>
+      <article class="stat">
+        <span class="label">Average views</span>
+        <strong>{% if channel.average_views is None %}Unavailable{% else %}{{ channel.average_views|floatformat:0|intcomma }}{% endif %}</strong>
+      </article>
+      <article class="stat">
+        <span class="label">Uploads per week</span>
+        <strong>{% if channel.upload_frequency_per_week is None %}Unavailable{% else %}{{ channel.upload_frequency_per_week|floatformat:2 }}{% endif %}</strong>
+      </article>
+    </section>
+    <section class="stat-grid">
+      <article class="stat"><span class="label">Public</span><strong>{% if channel.public_video_count is None %}Unknown{% else %}{{ channel.public_video_count }}{% endif %}</strong></article>
+      <article class="stat"><span class="label">Private</span><strong>{% if channel.private_video_count is None %}Unknown{% else %}{{ channel.private_video_count }}{% endif %}</strong></article>
+      <article class="stat"><span class="label">Unlisted</span><strong>{% if channel.unlisted_video_count is None %}Unknown{% else %}{{ channel.unlisted_video_count }}{% endif %}</strong></article>
+      <article class="stat">
+        <span class="label">Deleted</span>
+        <strong>Unknown</strong>
+        <em>{% if channel.removed_from_uploads_count %}{{ channel.removed_from_uploads_count }} missing from uploads{% else %}YouTube did not report deleted videos{% endif %}</em>
+      </article>
+    </section>
+    <section class="stat-grid">
+      <article class="stat"><span class="label">Last 7 days</span><strong>{% if channel.videos_last_7_days is None %}—{% else %}{{ channel.videos_last_7_days }}{% endif %}</strong></article>
+      <article class="stat"><span class="label">Last 30 days</span><strong>{% if channel.videos_last_30_days is None %}—{% else %}{{ channel.videos_last_30_days }}{% endif %}</strong></article>
+      <article class="stat"><span class="label">Last 90 days</span><strong>{% if channel.videos_last_90_days is None %}—{% else %}{{ channel.videos_last_90_days }}{% endif %}</strong></article>
+      <article class="stat"><span class="label">Last 365 days</span><strong>{% if channel.videos_last_365_days is None %}—{% else %}{{ channel.videos_last_365_days }}{% endif %}</strong></article>
+    </section>
+    <section class="two-col">
+      <article class="panel">
+        <h2>Catalog likes and comments</h2>
+        <p>Likes {% if channel.summed_video_likes is None %}unavailable{% else %}{{ channel.summed_video_likes|intcomma }}{% endif %}. Comments {% if channel.summed_video_comments is None %}unavailable{% else %}{{ channel.summed_video_comments|intcomma }}{% endif %}.</p>
+        <p class="muted">
+          Most viewed {% if channel.most_viewed_video_id %}{{ channel.most_viewed_video_id }}{% else %}unavailable{% endif %}.
+          Latest {% if channel.latest_video_id %}{{ channel.latest_video_id }}{% else %}unavailable{% endif %}.
+        </p>
+        {% if block.growth.available %}
+          <p class="muted">
+            Subscriber change {{ block.growth.from }} to {{ block.growth.to }}:
+            {% if block.growth.subscribers is None %}unavailable{% else %}{{ block.growth.subscribers|intcomma }}{% endif %}.
+            Official view change:
+            {% if block.growth.views is None %}unavailable{% else %}{{ block.growth.views|intcomma }}{% endif %}.
+          </p>
+        {% else %}
+          <p class="muted">Channel growth needs at least two daily subscriber snapshots.</p>
+        {% endif %}
+      </article>
+      <article class="panel">
+        <h2>Sync stages</h2>
+        {% if youtube.job.stages %}
+          <div class="table-wrap">
+            <table class="data">
+              <thead><tr><th>Stage</th><th>Status</th><th>Detail</th></tr></thead>
+              <tbody>
+                {% for stage in youtube.job.stages %}
+                  <tr>
+                    <td>{{ stage.name }}</td>
+                    <td>{{ stage.status }}</td>
+                    <td>{{ stage.detail }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="muted">No deep sync has been recorded yet.</p>
+        {% endif %}
+      </article>
+    </section>
+    <section class="panel">
+      <h2>Daily analytics</h2>
+      <p class="muted">These rows are Analytics API totals for each day. They are not the running channel view count.</p>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr><th>Date</th><th>Views</th><th>Watch time (min)</th><th>Avg view</th><th>Likes</th><th>Comments</th><th>Impressions</th><th>Subscribers +/−</th><th>Revenue</th></tr>
+          </thead>
+          <tbody>
+            {% for row in block.daily %}
+              <tr>
+                <td>{{ row.snapshot_date|date:"d M Y" }}</td>
+                <td>{% if row.views is None %}Unavailable{% else %}{{ row.views|intcomma }}{% endif %}</td>
+                <td>{% if row.watch_time_minutes is None %}Unavailable{% else %}{{ row.watch_time_minutes|floatformat:1 }}{% endif %}</td>
+                <td>{% if row.average_view_duration_seconds is None %}Unavailable{% else %}{{ row.average_view_duration_seconds|floatformat:0 }}s{% endif %}</td>
+                <td>{% if row.likes is None %}Unavailable{% else %}{{ row.likes|intcomma }}{% endif %}</td>
+                <td>{% if row.comments is None %}Unavailable{% else %}{{ row.comments|intcomma }}{% endif %}</td>
+                <td>{% if row.impressions is None %}Unavailable{% else %}{{ row.impressions|intcomma }}{% endif %}</td>
+                <td>
+                  {% if row.subscribers_gained is None %}—{% else %}+{{ row.subscribers_gained }}{% endif %}
+                  /
+                  {% if row.subscribers_lost is None %}—{% else %}−{{ row.subscribers_lost }}{% endif %}
+                </td>
+                <td>{% if row.estimated_revenue is None %}{% if channel.revenue_authorized == False %}Not authorized{% else %}Unavailable{% endif %}{% else %}{{ row.estimated_revenue }}{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="9">No daily analytics saved.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Cumulative snapshots</h2>
+      <p class="muted">Data API counters for that day. The change column is calculated from the previous snapshot.</p>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Date</th><th>Subscribers</th><th>Official views</th><th>Source</th></tr></thead>
+          <tbody>
+            {% for row in block.cumulative %}
+              <tr>
+                <td>{{ row.snapshot_date|date:"d M Y" }}</td>
+                <td>{% if row.subscribers is None %}Unavailable{% else %}{{ row.subscribers|intcomma }}{% endif %}</td>
+                <td>{% if row.views is None %}Unavailable{% else %}{{ row.views|intcomma }}{% endif %}</td>
+                <td>{{ row.source }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4">No cumulative snapshots saved.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% if block.report %}
+      <section class="panel">
+        <h2>Audience breakdown</h2>
+        <p class="muted">{{ block.report.period_start|date:"d M Y" }} – {{ block.report.snapshot_date|date:"d M Y" }} · {{ block.report.source }}</p>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>Dimension</th><th>Segment</th><th>Value</th></tr></thead>
+            <tbody>
+              {% for item in block.report.breakdowns.all %}
+                <tr>
+                  <td>{{ item.dimension }}</td>
+                  <td>{{ item.segment }}</td>
+                  <td>{% if item.value is None %}Unavailable{% else %}{{ item.value|floatformat:2 }}{% endif %}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3">This report did not include a breakdown.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+    <section class="panel">
+      <h2>Synced videos</h2>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr><th>Title</th><th>Privacy</th><th>Published</th><th>Duration</th><th>Views</th><th>Likes</th><th>Comments</th></tr>
+          </thead>
+          <tbody>
+            {% for video in block.videos %}
+              <tr>
+                <td>
+                  {% if video.content_pk %}
+                    <a href="{% url 'analytics:content' video.content_pk %}">{{ video.title|default:video.video_id }}</a>
+                  {% else %}
+                    {{ video.title|default:video.video_id }}
+                  {% endif %}
+                  {% if video.availability != "available" %}<span class="badge-sample">{{ video.get_availability_display }}</span>{% endif %}
+                </td>
+                <td>{% if video.privacy_status %}{{ video.privacy_status }}{% else %}Unknown{% endif %}</td>
+                <td>{% if video.published_at %}{{ video.published_at|date:"d M Y" }}{% else %}—{% endif %}</td>
+                <td>{% if video.duration_label %}{{ video.duration_label }}{% else %}Unavailable{% endif %}</td>
+                <td>{% if video.view_count is None %}Unavailable{% else %}{{ video.view_count|intcomma }}{% endif %}</td>
+                <td>{% if video.like_count is None %}Unavailable{% else %}{{ video.like_count|intcomma }}{% endif %}</td>
+                <td>{% if video.comment_count is None %}Unavailable{% else %}{{ video.comment_count|intcomma }}{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7">No videos saved for this channel yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if block.videos.paginator.num_pages > 1 %}
+        <div class="pager">
+          {% if block.videos.has_previous %}<a class="btn-line" href="?yt_page={{ block.videos.previous_page_number }}">Previous</a>{% endif %}
+          <span>Page {{ block.videos.number }} of {{ block.videos.paginator.num_pages }}</span>
+          {% if block.videos.has_next %}<a class="btn-line" href="?yt_page={{ block.videos.next_page_number }}">Next</a>{% endif %}
+        </div>
+      {% endif %}
+    </section>
+  {% endwith %}
+{% endfor %}

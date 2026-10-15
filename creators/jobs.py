@@ -10,6 +10,7 @@ from creators.models import EnrichmentJob
 from networks.http import ProviderError
 from networks.models import SocialAccount
 from networks.sync import sync_account
+from networks.youtube.client import YouTubeAPIError
 
 logger = logging.getLogger("creators.jobs")
 
@@ -93,7 +94,18 @@ def process_job(job):
             "The connected account has no access token stored.",
         )
     try:
-        sync_account(account)
+        if account.platform == "youtube":
+            from networks.youtube.jobs import run_for_account
+
+            run_for_account(account, mode="incremental", requested_by=job.requested_by)
+        else:
+            sync_account(account)
+    except YouTubeAPIError as exc:
+        if exc.kind in {"permission", "permanent"}:
+            return _finish(job, EnrichmentJob.Status.FAILED, str(exc))
+        if exc.kind == "quota":
+            return _finish(job, EnrichmentJob.Status.BLOCKED, str(exc))
+        return _retry_or_fail(job, str(exc))
     except ProviderError as exc:
         return _retry_or_fail(job, str(exc))
     except Exception as exc:
