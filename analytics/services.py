@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.db.models import Sum
 from django.utils import timezone
 
+from networks.charts import bar, doughnut
 from networks.demo import ensure_sample_demographics
 from networks.models import ContentItem, reaction_rate
 from networks.platforms import PLATFORMS
@@ -28,7 +29,7 @@ def build_dashboard(user):
                 "posts": content_count,
                 "rate": _content_rate(account),
                 "history": list(reversed(_with_deltas(history)[-14:])),
-                "demographics": _demographics(history),
+                "demographics": _demographics(history, PLATFORMS[account.platform]["color"]),
                 "stats": _platform_stats(account, history, snap),
             }
         )
@@ -84,7 +85,7 @@ def build_platform(account):
     )
     reactions = sum(totals.get(key) or 0 for key in ("likes", "comments", "shares", "saves"))
     view_total = totals.get("views") or 0
-    demographics = _demographics(snapshots)
+    demographics = _demographics(snapshots, PLATFORMS[account.platform]["color"])
     return {
         "account": account,
         "meta": PLATFORMS[account.platform],
@@ -117,8 +118,8 @@ def build_platform(account):
         "charts": {
             "audience": _single_audience_chart(account, snapshots),
             "posts": _posts_chart(account, list(contents.order_by("-views")[:6])),
-            "countries": _breakdown_chart(demographics["countries"], PLATFORMS[account.platform]["color"]),
-            "genders": _gender_chart(demographics["genders"]),
+            "countries": demographics["country_chart"],
+            "genders": demographics["gender_chart"],
         },
     }
 
@@ -248,8 +249,15 @@ def _snapshots(accounts):
     )
 
 
-def _demographics(history):
-    empty = {"countries": [], "genders": [], "estimated": False, "has_previous": False}
+def _demographics(history, color="#0f766e"):
+    empty = {
+        "countries": [],
+        "genders": [],
+        "estimated": False,
+        "has_previous": False,
+        "country_chart": None,
+        "gender_chart": None,
+    }
     if not history:
         return empty
     latest = history[-1]
@@ -277,62 +285,14 @@ def _demographics(history):
             genders.append(item)
     countries.sort(key=lambda item: item["count"], reverse=True)
     genders.sort(key=lambda item: item["count"], reverse=True)
+    countries = countries[:10]
     return {
-        "countries": countries[:10],
+        "countries": countries,
         "genders": genders,
         "estimated": estimated,
         "has_previous": previous is not None,
-    }
-
-
-def _breakdown_chart(items, color):
-    items = items[:8]
-    if not items:
-        return None
-    return {
-        "type": "bar",
-        "data": {
-            "labels": [item["label"] for item in items],
-            "datasets": [
-                {
-                    "label": "Audience",
-                    "data": [item["count"] for item in items],
-                    "backgroundColor": color,
-                    "borderRadius": 6,
-                }
-            ],
-        },
-        "options": {
-            "indexAxis": "y",
-            "responsive": True,
-            "maintainAspectRatio": False,
-            "plugins": {"legend": {"display": False}},
-            "scales": {"x": {"beginAtZero": True, "ticks": {"precision": 0}}},
-        },
-    }
-
-
-def _gender_chart(items):
-    if not items:
-        return None
-    colors = {"Female": "#c2410c", "Male": "#1d4ed8", "Unknown": "#a8a29e"}
-    return {
-        "type": "doughnut",
-        "data": {
-            "labels": [item["label"] for item in items],
-            "datasets": [
-                {
-                    "data": [item["count"] for item in items],
-                    "backgroundColor": [colors.get(item["label"], "#78716c") for item in items],
-                    "borderWidth": 0,
-                }
-            ],
-        },
-        "options": {
-            "responsive": True,
-            "maintainAspectRatio": False,
-            "plugins": {"legend": {"position": "bottom"}},
-        },
+        "country_chart": bar([item["label"] for item in countries[:8]], [item["count"] for item in countries[:8]], color),
+        "gender_chart": doughnut([item["label"] for item in genders], [item["count"] for item in genders]),
     }
 
 

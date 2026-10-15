@@ -1,6 +1,8 @@
 from django.core.paginator import Paginator
 
+from networks.charts import bar, chart_block, doughnut, number
 from networks.countries import country_label
+from networks.platforms import PLATFORMS
 from networks.youtube.aggregates import growth
 
 GENDER_LABELS = {
@@ -145,16 +147,62 @@ def _audience(report):
     ages.sort(key=lambda item: item["share"] or 0, reverse=True)
     crossed.sort(key=lambda item: item["share"] or 0, reverse=True)
     countries.sort(key=lambda item: item["views"] or 0, reverse=True)
-    if not genders and not ages and not crossed and not countries:
+    charts = _audience_charts(report.channel.channel_id, genders, ages, crossed, countries)
+    if not charts:
         return None
     return {
         "period_start": report.period_start,
         "period_end": report.snapshot_date,
-        "genders": genders,
-        "ages": ages,
-        "age_genders": crossed,
-        "countries": countries,
+        "charts": charts,
     }
+
+
+def _audience_charts(channel_id, genders, ages, crossed, countries):
+    prefix = f"yt-{channel_id}"
+    color = PLATFORMS["youtube"]["color"]
+    blocks = [
+        chart_block(
+            prefix,
+            "gender",
+            "Gender",
+            doughnut([item["label"] for item in genders], [number(item["share"]) for item in genders]),
+        ),
+        chart_block(
+            prefix,
+            "age",
+            "Age",
+            bar([item["label"] for item in ages], [number(item["share"]) for item in ages], color, "Viewer share"),
+        ),
+        chart_block(
+            prefix,
+            "age-gender",
+            "Age and gender",
+            bar([item["label"] for item in crossed], [number(item["share"]) for item in crossed], color, "Viewer share"),
+        ),
+        chart_block(
+            prefix,
+            "country",
+            "Country views",
+            bar(
+                [item["label"] for item in countries if item["views"] is not None],
+                [number(item["views"]) for item in countries if item["views"] is not None],
+                color,
+                "Views",
+            ),
+        ),
+        chart_block(
+            prefix,
+            "watch",
+            "Watch time by country",
+            bar(
+                [item["label"] for item in countries if item["watch_time_minutes"] is not None],
+                [number(item["watch_time_minutes"]) for item in countries if item["watch_time_minutes"] is not None],
+                color,
+                "Minutes",
+            ),
+        ),
+    ]
+    return [block for block in blocks if block]
 
 
 def _share_row(segment, label, value):

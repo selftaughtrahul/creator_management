@@ -1,7 +1,9 @@
 from django.core.paginator import Paginator
 from django.urls import reverse
 
+from networks.charts import charts_from_breakdowns
 from networks.instagram_models import InstagramProfile, InstagramSnapshot
+from networks.platforms import PLATFORMS
 
 
 def attached_profile(account):
@@ -49,7 +51,11 @@ def platform_context(account, page_number):
         "daily": daily,
         "window": window,
         "delta": delta,
-        "demographics": list(demographics.breakdowns.all()) if demographics else [],
+        "demographic_charts": charts_from_breakdowns(
+            list(demographics.breakdowns.all()) if demographics else [],
+            "ig",
+            PLATFORMS["instagram"]["color"],
+        ),
         "job": job,
     }
 

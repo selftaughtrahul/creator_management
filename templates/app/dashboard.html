@@ -67,7 +67,7 @@
       {% for row in rows %}
         <div class="snapshot-block">
           <div class="kicker"><i class="bi {{ row.meta.icon }}"></i> {{ row.meta.label }}</div>
-          {% include "partials/demographics.html" with demographics=row.demographics %}
+          {% include "partials/demographics.html" with demographics=row.demographics chart_key=row.account.pk %}
         </div>
       {% endfor %}
     </section>

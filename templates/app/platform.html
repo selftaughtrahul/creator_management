@@ -115,19 +115,7 @@
     {% if platform != "youtube" or account.is_sample or not youtube %}
     <section class="panel">
       <h2>Audience demographics</h2>
-      {% include "partials/demographics.html" with demographics=demographics %}
-      {% if charts.countries or charts.genders %}
-        <div class="two-col">
-          {% if charts.countries %}
-            <div class="chart-box"><canvas id="countryChart"></canvas></div>
-            {{ charts.countries|json_script:"countryChart-spec" }}
-          {% endif %}
-          {% if charts.genders %}
-            <div class="chart-box"><canvas id="genderChart"></canvas></div>
-            {{ charts.genders|json_script:"genderChart-spec" }}
-          {% endif %}
-        </div>
-      {% endif %}
+      {% include "partials/demographics.html" with demographics=demographics chart_key=platform %}
     </section>
     {% endif %}
     <section class="panel">

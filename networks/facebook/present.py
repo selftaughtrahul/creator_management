@@ -1,7 +1,9 @@
 from django.core.paginator import Paginator
 from django.urls import reverse
 
+from networks.charts import charts_from_breakdowns
 from networks.facebook_models import FacebookSnapshot
+from networks.platforms import PLATFORMS
 
 
 def platform_context(account, page_number):
@@ -34,7 +36,11 @@ def platform_context(account, page_number):
         "page": page,
         "daily": daily,
         "delta": delta,
-        "demographics": list(demographics.breakdowns.all()) if demographics else [],
+        "demographic_charts": charts_from_breakdowns(
+            list(demographics.breakdowns.all()) if demographics else [],
+            "fb",
+            PLATFORMS["facebook"]["color"],
+        ),
         "job": job,
     }
 

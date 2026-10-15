@@ -80,22 +80,19 @@
       </table>
     </section>
   {% endif %}
-  {% if instagram.demographics %}
+  {% if instagram.demographic_charts %}
     <section class="panel">
       <h2>Follower demographics</h2>
-      <p class="muted">follower_demographics for this month. A missing breakdown stays off this list.</p>
-      <table class="data">
-        <thead><tr><th>Breakdown</th><th>Segment</th><th>Followers</th></tr></thead>
-        <tbody>
-          {% for row in instagram.demographics %}
-            <tr>
-              <td>{{ row.dimension }}</td>
-              <td>{{ row.segment }}</td>
-              <td>{% if row.value == None %}—{% else %}{{ row.value|floatformat:0|intcomma }}{% endif %}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <p class="muted">Follower share for this month. A missing breakdown stays off these charts.</p>
+      <div class="two-col">
+        {% for chart in instagram.demographic_charts %}
+          <div>
+            <h3>{{ chart.title }}</h3>
+            <div class="chart-box"><canvas id="{{ chart.canvas }}"></canvas></div>
+            {{ chart.spec|json_script:chart.spec_id }}
+          </div>
+        {% endfor %}
+      </div>
     </section>
   {% endif %}
   <section class="panel">

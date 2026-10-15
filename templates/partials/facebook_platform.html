@@ -64,21 +64,18 @@
       </table>
     </section>
   {% endif %}
-  {% if facebook.demographics %}
+  {% if facebook.demographic_charts %}
     <section class="panel">
       <h2>Audience</h2>
-      <table class="data">
-        <thead><tr><th>Breakdown</th><th>Segment</th><th>Count</th></tr></thead>
-        <tbody>
-          {% for row in facebook.demographics %}
-            <tr>
-              <td>{{ row.dimension }}</td>
-              <td>{{ row.segment }}</td>
-              <td>{% if row.value == None %}—{% else %}{{ row.value|floatformat:0|intcomma }}{% endif %}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="two-col">
+        {% for chart in facebook.demographic_charts %}
+          <div>
+            <h3>{{ chart.title }}</h3>
+            <div class="chart-box"><canvas id="{{ chart.canvas }}"></canvas></div>
+            {{ chart.spec|json_script:chart.spec_id }}
+          </div>
+        {% endfor %}
+      </div>
     </section>
   {% endif %}
   <section class="panel">

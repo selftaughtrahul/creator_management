@@ -192,79 +192,16 @@
         <h2>Audience demographics</h2>
         <p class="muted">
           {{ block.audience.period_start|date:"d M Y" }} – {{ block.audience.period_end|date:"d M Y" }}.
-          Gender and age are the share of logged-in viewers from the YouTube Analytics API.
-          Country rows are views and watch time, which YouTube does not report as a viewer percentage.
+          Gender and age are the share of logged-in viewers. Country charts are views and watch time.
         </p>
         <div class="two-col">
-          <div>
-            <h3>Gender</h3>
-            <div class="table-wrap">
-              <table class="data">
-                <thead><tr><th>Gender</th><th>Viewer share</th></tr></thead>
-                <tbody>
-                  {% for item in block.audience.genders %}
-                    <tr>
-                      <td>{{ item.label }}</td>
-                      <td>{% if item.share is None %}Unavailable{% else %}{{ item.share|floatformat:1 }}%{% endif %}</td>
-                    </tr>
-                  {% empty %}
-                    <tr><td colspan="2">YouTube did not return a gender breakdown for this period.</td></tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+          {% for chart in block.audience.charts %}
+            <div>
+              <h3>{{ chart.title }}</h3>
+              <div class="chart-box"><canvas id="{{ chart.canvas }}"></canvas></div>
+              {{ chart.spec|json_script:chart.spec_id }}
             </div>
-          </div>
-          <div>
-            <h3>Age</h3>
-            <div class="table-wrap">
-              <table class="data">
-                <thead><tr><th>Age group</th><th>Viewer share</th></tr></thead>
-                <tbody>
-                  {% for item in block.audience.ages %}
-                    <tr>
-                      <td>{{ item.label }}</td>
-                      <td>{% if item.share is None %}Unavailable{% else %}{{ item.share|floatformat:1 }}%{% endif %}</td>
-                    </tr>
-                  {% empty %}
-                    <tr><td colspan="2">YouTube did not return an age breakdown for this period.</td></tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        {% if block.audience.age_genders %}
-          <h3>Age and gender</h3>
-          <div class="table-wrap">
-            <table class="data">
-              <thead><tr><th>Group</th><th>Viewer share</th></tr></thead>
-              <tbody>
-                {% for item in block.audience.age_genders %}
-                  <tr>
-                    <td>{{ item.label }}</td>
-                    <td>{% if item.share is None %}Unavailable{% else %}{{ item.share|floatformat:1 }}%{% endif %}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        {% endif %}
-        <h3>Country</h3>
-        <div class="table-wrap">
-          <table class="data">
-            <thead><tr><th>Country</th><th>Views</th><th>Watch time (minutes)</th></tr></thead>
-            <tbody>
-              {% for item in block.audience.countries %}
-                <tr>
-                  <td>{{ item.label }}</td>
-                  <td>{% if item.views is None %}Unavailable{% else %}{{ item.views|floatformat:0|intcomma }}{% endif %}</td>
-                  <td>{% if item.watch_time_minutes is None %}Unavailable{% else %}{{ item.watch_time_minutes|floatformat:1 }}{% endif %}</td>
-                </tr>
-              {% empty %}
-                <tr><td colspan="3">YouTube did not return country statistics for this period.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+          {% endfor %}
         </div>
       </section>
     {% elif channel.analytics_authorized == False %}

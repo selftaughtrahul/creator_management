@@ -1,55 +1,28 @@
-{% load humanize %}
-{% if demographics.countries or demographics.genders %}
+{% if demographics.country_chart or demographics.gender_chart %}
   {% if demographics.estimated %}
     <p class="muted">YouTube reports viewer share, not follower counts. These counts apply that share to the current subscriber total.</p>
   {% elif demographics.has_previous %}
     <p class="muted">Change is the difference from the previous saved day.</p>
   {% endif %}
   <div class="two-col">
-    <div>
-      <h3>Country</h3>
-      <div class="table-wrap">
-        <table class="data">
-          <thead>
-            <tr><th>Country</th><th>Audience</th><th>Share</th><th>Change</th></tr>
-          </thead>
-          <tbody>
-            {% for item in demographics.countries %}
-              <tr>
-                <td>{{ item.label }}</td>
-                <td>{{ item.count|intcomma }}</td>
-                <td>{{ item.share }}%</td>
-                <td>{% include "partials/delta.html" with delta=item.delta %}</td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="4">No country breakdown saved.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+    {% if demographics.country_chart %}
+      <div>
+        <h3>Country</h3>
+        <div class="chart-box"><canvas id="countryChart-{{ chart_key }}"></canvas></div>
+        {% with spec_id="countryChart-"|add:chart_key|add:"-spec" %}
+          {{ demographics.country_chart|json_script:spec_id }}
+        {% endwith %}
       </div>
-    </div>
-    <div>
-      <h3>Gender</h3>
-      <div class="table-wrap">
-        <table class="data">
-          <thead>
-            <tr><th>Gender</th><th>Audience</th><th>Share</th><th>Change</th></tr>
-          </thead>
-          <tbody>
-            {% for item in demographics.genders %}
-              <tr>
-                <td>{{ item.label }}</td>
-                <td>{{ item.count|intcomma }}</td>
-                <td>{{ item.share }}%</td>
-                <td>{% include "partials/delta.html" with delta=item.delta %}</td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="4">No gender breakdown saved.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+    {% endif %}
+    {% if demographics.gender_chart %}
+      <div>
+        <h3>Gender</h3>
+        <div class="chart-box"><canvas id="genderChart-{{ chart_key }}"></canvas></div>
+        {% with spec_id="genderChart-"|add:chart_key|add:"-spec" %}
+          {{ demographics.gender_chart|json_script:spec_id }}
+        {% endwith %}
       </div>
-    </div>
+    {% endif %}
   </div>
 {% else %}
   <p class="muted">No country or gender breakdown is saved for this account yet. Instagram, Facebook, and YouTube add it on the next sync. X does not provide these counts.</p>
