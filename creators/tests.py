@@ -20,6 +20,7 @@ from creators.models import (
     EnrichmentJob,
     Subcategory,
 )
+from creators.scraped import claim_by_handles
 from creators.parser import chat_turn, parse_query
 from creators.taxonomy import ensure_taxonomy
 from networks.models import ContentItem, MetricSnapshot, SocialAccount
@@ -298,3 +299,39 @@ class CreatorTransferTests(TestCase):
         )
         self.assertContains(response, "Delete the example row")
         self.assertEqual(CreatorProfile.objects.count(), before)
+
+
+class ScrapedCreatorImportTests(TestCase):
+    def test_join_claims_existing_creator_without_password(self):
+        creator = make_creator("vai@example.com", "vai", display_name="Vai Monroe", location="Chile")
+        creator.user.set_unusable_password()
+        creator.user.save(update_fields=["password"])
+        SocialAccount.objects.create(user=creator.user, platform="instagram", username="vai_monroe")
+        response = self.client.post(
+            reverse("creators:join"),
+            {
+                "full_name": "Vai Monroe",
+                "email": "vai@example.com",
+                "password1": "Northline-Studio-2026!",
+                "password2": "Northline-Studio-2026!",
+                "location": "",
+                "share_metrics": "on",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        creator.user.refresh_from_db()
+        self.assertTrue(creator.user.has_usable_password())
+        self.assertEqual(CreatorProfile.objects.filter(user__email="vai@example.com").count(), 1)
+
+    def test_connect_claims_existing_account_by_youtube_handle(self):
+        imported = make_creator("scraped+youtube-yuyamundo@scraped.awisee.local", "yuya", display_name="Yuya")
+        imported.user.set_unusable_password()
+        imported.user.save(update_fields=["password"])
+        SocialAccount.objects.create(user=imported.user, platform="youtube", username="@yuyamundo")
+        creator = make_creator("yt@example.com", "ytuser", display_name="YT")
+        claimed = claim_by_handles(creator, handles=[("youtube", "@YuyaMundo")])
+        self.assertEqual(claimed, 1)
+        self.assertTrue(
+            SocialAccount.objects.filter(user=creator.user, platform="youtube", username="@yuyamundo").exists()
+        )

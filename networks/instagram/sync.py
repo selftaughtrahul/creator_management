@@ -59,6 +59,9 @@ def sync_instagram(account, job):
         refresh_follower_deltas(profile_row)
         _aggregates(profile_row)
         _mirror_account(account, profile_row)
+        from creators.scraped import attach_connected_account
+
+        attach_connected_account(account)
     except InstagramAPIError as exc:
         stages["profile"] = stages.get("profile") or _stage(exc)
         notes.append(str(exc))

@@ -31,7 +31,7 @@ def studio_dashboard(request):
     memberships = CampaignCreator.objects.filter(campaign__in=scoped)
     shortlisted = memberships.filter(state=CampaignCreator.State.SHORTLISTED).values("creator").distinct().count()
     assigned = memberships.filter(state=CampaignCreator.State.ASSIGNED).values("creator").distinct().count()
-    discovered = CreatorProfile.objects.filter(discoverable=True).count()
+    discovered = CreatorProfile.objects.count()
 
     invitations = Invitation.objects.filter(campaign__in=scoped)
     invite_counts = {key: 0 for key, _ in Invitation.Status.choices}
@@ -126,7 +126,7 @@ def studio_dashboard(request):
         "definitions": {
             "campaigns_total": "Count of Campaign rows in the selected date/campaign filter.",
             "campaigns_active": "Campaigns with status=active in that set.",
-            "creators_discovered": "CreatorProfile rows with discoverable=True (not filtered by campaign).",
+            "creators_discovered": "All CreatorProfile rows, including sheet imports (not filtered by campaign).",
             "creators_shortlisted": "Distinct creators on CampaignCreator with state=shortlisted.",
             "invitations_sent": "Invitations with status sent or stored_locally. Delivered is not recorded.",
             "budget_sum": "Sum of Campaign.budget where budget is set. Campaigns without a budget are omitted.",

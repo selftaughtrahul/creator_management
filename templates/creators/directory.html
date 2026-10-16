@@ -17,6 +17,8 @@
   </div>
   {% if results %}
     <p class="muted">{{ results.total }} creator{{ results.total|pluralize }} match this conversation. Location {{ results.criteria.location|default:"any" }}, followers {{ results.criteria.follower_min|default:"—" }}–{{ results.criteria.follower_max|default:"—" }}, platforms {{ results.criteria.platforms|join:", "|default:"any" }}, niche {{ results.criteria.niche|default:"any" }}.</p>
+  {% else %}
+    <p class="muted">{{ page.paginator.count }} creator{{ page.paginator.count|pluralize }} in the roster.</p>
   {% endif %}
   {% if cards %}
     <section class="panel">

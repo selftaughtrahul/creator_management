@@ -47,7 +47,11 @@ class CreatorJoinForm(StyledForm):
     )
 
     def clean_email(self):
+        from creators.scraped import claimable_user
+
         email = self.cleaned_data["email"].lower()
+        if claimable_user(email):
+            return email
         if User.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError("An account with this email already exists.")
         return email

@@ -173,6 +173,12 @@ def _sync_channels(account, client, job):
     _apply_scope_flags(saved, job.granted_scopes)
     primary = _primary(saved)
     _touch_account(account, primary, len(saved))
+    from creators.scraped import attach_connected_account
+
+    extra = []
+    if primary is not None:
+        extra = [("youtube", primary.channel_id), ("youtube", primary.custom_url)]
+    attach_connected_account(account, extra_handles=extra)
     _stage(job, "channel", "success", f"channels={len(saved)}")
     logger.info("youtube_channels job_id=%s count=%s", job.pk, len(saved))
     return saved

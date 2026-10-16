@@ -50,27 +50,46 @@ def join(request):
         email = form.cleaned_data["email"]
         name = form.cleaned_data["full_name"].strip()
         first, _, last = name.partition(" ")
-        user = User.objects.create_user(
-            username=unique_username(email),
-            email=email,
-            password=form.cleaned_data["password1"],
-            first_name=first,
-            last_name=last,
-        )
-        StudioProfile.objects.update_or_create(
-            user=user,
-            defaults={"role": StudioProfile.Role.CREATOR},
-        )
-        CreatorProfile.objects.create(
-            user=user,
-            display_name=name,
-            location=form.cleaned_data.get("location") or "",
-            discoverable=form.cleaned_data.get("discoverable") and form.cleaned_data.get("share_metrics"),
-            share_metrics=form.cleaned_data.get("share_metrics"),
-        )
+        from creators.scraped import claim_imported_user, claimable_user
+
+        existing = claimable_user(email)
+        if existing:
+            claim_imported_user(
+                existing,
+                password=form.cleaned_data["password1"],
+                name=name,
+                location=form.cleaned_data.get("location") or "",
+            )
+            user = existing
+        else:
+            user = User.objects.create_user(
+                username=unique_username(email),
+                email=email,
+                password=form.cleaned_data["password1"],
+                first_name=first,
+                last_name=last,
+            )
+            StudioProfile.objects.update_or_create(
+                user=user,
+                defaults={"role": StudioProfile.Role.CREATOR},
+            )
+            CreatorProfile.objects.create(
+                user=user,
+                display_name=name,
+                location=form.cleaned_data.get("location") or "",
+                discoverable=form.cleaned_data.get("discoverable") and form.cleaned_data.get("share_metrics"),
+                share_metrics=form.cleaned_data.get("share_metrics"),
+            )
         from allauth.account.models import EmailAddress
 
-        address = EmailAddress.objects.create(user=user, email=email, primary=True, verified=False)
+        address, _ = EmailAddress.objects.get_or_create(
+            user=user,
+            email=email,
+            defaults={"primary": True, "verified": False},
+        )
+        if address.verified:
+            address.verified = False
+            address.save(update_fields=["verified"])
         address.send_confirmation(request, signup=True)
         messages.info(request, "Check your email to verify the address before logging in.")
         return redirect("account_email_verification_sent")
