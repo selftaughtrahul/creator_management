@@ -3,9 +3,6 @@
 {% block title %}Studio · Awisee{% endblock %}
 {% block page_heading %}Campaign studio{% endblock %}
 {% block content %}
-  {% if missing %}
-    <div class="notice">{% for note in missing %}{{ note }} {% endfor %}</div>
-  {% endif %}
   <section class="stat-grid compact">
     <article class="stat"><span class="label">Campaigns</span><strong>{{ kpis.campaigns_total|intcomma }}</strong><em>{{ kpis.campaigns_active }} active · {{ kpis.campaigns_completed }} completed</em></article>
     <article class="stat"><span class="label">Creators</span><strong>{{ kpis.creators_discovered|intcomma }}</strong><em>{{ kpis.creators_shortlisted }} shortlisted · {{ kpis.creators_assigned }} assigned</em></article>
@@ -17,18 +14,12 @@
     </article>
   </section>
   <section class="stat-grid compact">
-    <article class="stat"><span class="label">Admins</span><strong>{{ kpis.admins|intcomma }}</strong><em>{{ definitions.admins }}</em></article>
-    <article class="stat"><span class="label">Employees</span><strong>{{ kpis.employees|intcomma }}</strong><em>{{ definitions.employees }}</em></article>
-    <article class="stat"><span class="label">Creator accounts</span><strong>{{ kpis.creators_total|intcomma }}</strong><em>{{ definitions.creators_total }}</em></article>
-    <article class="stat"><span class="label">Connected accounts</span><strong>{{ kpis.social_accounts|intcomma }}</strong><em>{{ definitions.social_accounts }}</em></article>
+    <article class="stat"><span class="label">Facebook</span><strong>{{ kpis.facebook_creators|intcomma }}</strong><em>creators with a Facebook account</em></article>
+    <article class="stat"><span class="label">X</span><strong>{{ kpis.twitter_creators|intcomma }}</strong><em>creators with an X account</em></article>
+    <article class="stat"><span class="label">YouTube</span><strong>{{ kpis.youtube_creators|intcomma }}</strong><em>creators with a YouTube account</em></article>
+    <article class="stat"><span class="label">Instagram</span><strong>{{ kpis.instagram_creators|intcomma }}</strong><em>creators with an Instagram account</em></article>
   </section>
-  <section class="stat-grid compact">
-    <article class="stat"><span class="label">Feedback yes-rate</span><strong>{% if kpis.acceptance_rate is not None %}{{ kpis.acceptance_rate }}%{% else %}—{% endif %}</strong><em>{{ kpis.feedback_total }} feedback row{{ kpis.feedback_total|pluralize }}</em></article>
-    <article class="stat"><span class="label">Classification eval</span><strong>{% if evaluation.ready %}{{ evaluation.f1 }}{% else %}—{% endif %}</strong><em>{{ evaluation.message }}</em></article>
-    <article class="stat"><span class="label">Job backlog</span><strong>{{ jobs.open|intcomma }}</strong><em>{{ jobs.pending }} pending · {{ jobs.blocked }} blocked · {{ jobs.failed }} failed</em></article>
-    <article class="stat"><span class="label">Onboarding ready</span><strong>{{ onboarding.ready|default:0 }}</strong><em>{{ onboarding.registered|default:0 }} registered · {{ onboarding.onboarding|default:0 }} onboarding</em></article>
-  </section>
-  <p class="kpi-note">{{ definitions.campaigns_total }} {{ definitions.invitations_sent }} {{ definitions.acceptance_rate }}</p>
+  <p class="kpi-note">{{ definitions.campaigns_total }} {{ definitions.invitations_sent }}</p>
   <section class="two-col">
     <article class="panel">
       <h2>Campaign status</h2>
@@ -89,5 +80,38 @@
         </tbody>
       </table>
     </article>
+  </section>
+  <section class="panel">
+    <h2>Top 10 creators</h2>
+    {% if top_creators %}
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Creator</th>
+              <th>Location</th>
+              <th>Platform</th>
+              <th>Subscribers</th>
+              <th>Views</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in top_creators %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td><a href="{% url 'creators:detail' row.creator.pk %}">{{ row.creator.display_name }}</a></td>
+                <td>{{ row.creator.location|default:"—" }}</td>
+                <td>{{ row.platforms|join:", "|default:"—" }}</td>
+                <td>{{ row.subscribers|intcomma }}</td>
+                <td>{% if row.views %}{{ row.views|intcomma }}{% else %}—{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">No subscriber counts stored yet.</p>
+    {% endif %}
   </section>
 {% endblock %}

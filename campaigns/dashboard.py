@@ -1,15 +1,13 @@
 from datetime import datetime, time
 
-from django.db.models import Count, Sum
+from django.db.models import Count, OuterRef, Subquery, Sum
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
-from accounts.models import StudioProfile
 from campaigns.models import Campaign, CampaignCreator, Invitation, Offer, RecommendationFeedback
-from creators.evaluation import evaluate_labels
-from creators.jobs import backlog_counts
 from creators.models import Classification, CreatorProfile, EnrichmentJob
-from networks.models import SocialAccount
+from networks.models import MetricSnapshot, SocialAccount
 
 
 def studio_dashboard(request):
@@ -44,10 +42,6 @@ def studio_dashboard(request):
         + invite_counts.get("rejected", 0)
     )
 
-    onboarding = {key: 0 for key, _ in CreatorProfile.Status.choices}
-    for row in CreatorProfile.objects.values("status").annotate(total=Count("id")):
-        onboarding[row["status"]] = row["total"]
-
     budget_set = scoped.exclude(budget__isnull=True)
     budget_sum = budget_set.aggregate(total=Sum("budget")).get("total")
     cost_sum = memberships.aggregate(total=Sum("recorded_cost")).get("total")
@@ -58,8 +52,7 @@ def studio_dashboard(request):
     yes_count = feedback.filter(decision=RecommendationFeedback.Decision.YES).count()
     acceptance = round(yes_count / feedback_total * 100, 1) if feedback_total else None
 
-    labels_eval = evaluate_labels()
-    jobs = backlog_counts()
+    platforms = _platform_creator_counts()
     due_followups = invitations.filter(
         follow_up_at__isnull=False,
         follow_up_at__lte=timezone.now(),
@@ -118,10 +111,10 @@ def studio_dashboard(request):
             "acceptance_rate": acceptance,
             "feedback_total": feedback_total,
             "due_followups": due_followups,
-            "admins": StudioProfile.objects.filter(role=StudioProfile.Role.ADMIN).count(),
-            "employees": StudioProfile.objects.filter(role=StudioProfile.Role.EMPLOYEE).count(),
-            "creators_total": StudioProfile.objects.filter(role=StudioProfile.Role.CREATOR).count(),
-            "social_accounts": SocialAccount.objects.count(),
+            "facebook_creators": platforms["facebook"],
+            "twitter_creators": platforms["twitter"],
+            "youtube_creators": platforms["youtube"],
+            "instagram_creators": platforms["instagram"],
         },
         "definitions": {
             "campaigns_total": "Count of Campaign rows in the selected date/campaign filter.",
@@ -131,25 +124,70 @@ def studio_dashboard(request):
             "invitations_sent": "Invitations with status sent or stored_locally. Delivered is not recorded.",
             "budget_sum": "Sum of Campaign.budget where budget is set. Campaigns without a budget are omitted.",
             "cost_sum": "Sum of CampaignCreator.recorded_cost. Null costs are unrecorded, not treated as zero.",
-            "acceptance_rate": "RecommendationFeedback decision=yes divided by all feedback rows. Hidden when none exist.",
-            "admins": "StudioProfile rows with role admin.",
-            "employees": "StudioProfile rows with role employee.",
-            "creators_total": "StudioProfile rows with role creator.",
-            "social_accounts": "Connected SocialAccount rows across every user.",
         },
         "status_counts": status_counts,
         "invite_counts": invite_counts,
-        "onboarding": onboarding,
         "offer_counts": offer_counts,
-        "jobs": jobs,
-        "evaluation": labels_eval,
         "review_queue": review_queue,
         "recent_jobs": recent_jobs,
         "recent_campaigns": recent_campaigns,
         "team_activity": team_activity,
+        "top_creators": _top_creators(limit=10),
         "charts": charts,
-        "missing": _missing(budget_sum, cost_sum, acceptance, labels_eval),
     }
+
+
+def _platform_creator_counts() -> dict[str, int]:
+    counts = {key: 0 for key, _ in SocialAccount.Platform.choices}
+    for row in (
+        SocialAccount.objects.filter(user__creator_profile__isnull=False)
+        .values("platform")
+        .annotate(total=Count("user_id", distinct=True))
+    ):
+        counts[row["platform"]] = row["total"]
+    return counts
+
+
+def _top_creators(limit: int = 10) -> list[dict]:
+    latest = MetricSnapshot.objects.filter(account_id=OuterRef("pk")).order_by("-captured_at")
+    ranked = list(
+        SocialAccount.objects.annotate(
+            latest_followers=Subquery(latest.values("followers")[:1]),
+            latest_views=Subquery(latest.values("views")[:1]),
+        )
+        .values("user_id")
+        .annotate(
+            subscribers=Coalesce(Sum("latest_followers"), 0),
+            views=Coalesce(Sum("latest_views"), 0),
+        )
+        .filter(subscribers__gt=0)
+        .order_by("-subscribers", "-views")[:limit]
+    )
+    profiles = {
+        profile.user_id: profile
+        for profile in CreatorProfile.objects.filter(user_id__in=[row["user_id"] for row in ranked]).select_related(
+            "user"
+        )
+    }
+    platforms = {}
+    for account in SocialAccount.objects.filter(user_id__in=profiles).exclude(username=""):
+        platforms.setdefault(account.user_id, [])
+        if account.get_platform_display() not in platforms[account.user_id]:
+            platforms[account.user_id].append(account.get_platform_display())
+    rows = []
+    for row in ranked:
+        profile = profiles.get(row["user_id"])
+        if profile is None:
+            continue
+        rows.append(
+            {
+                "creator": profile,
+                "subscribers": row["subscribers"] or 0,
+                "views": row["views"] or 0,
+                "platforms": platforms.get(profile.user_id, []),
+            }
+        )
+    return rows
 
 
 def _range(request):
@@ -176,15 +214,3 @@ def _doughnut(labels, data, colors):
         },
     }
 
-
-def _missing(budget_sum, cost_sum, acceptance, evaluation):
-    notes = []
-    if budget_sum is None:
-        notes.append("No campaign in this filter has a budget set.")
-    if cost_sum is None:
-        notes.append("No recorded creator costs in this filter.")
-    if acceptance is None:
-        notes.append("No recommendation feedback rows, so acceptance rate is not shown.")
-    if not evaluation["ready"]:
-        notes.append(evaluation["message"])
-    return notes

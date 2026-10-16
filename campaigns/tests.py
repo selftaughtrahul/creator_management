@@ -229,7 +229,22 @@ class CampaignAndSearchTests(TestCase):
         self.assertEqual(response.context["kpis"]["campaigns_total"], Campaign.objects.count())
         self.assertEqual(response.context["kpis"]["campaigns_active"], 1)
         self.assertIsNone(response.context["kpis"]["acceptance_rate"])
+        self.assertEqual(response.context["kpis"]["youtube_creators"], 1)
+        self.assertEqual(response.context["kpis"]["instagram_creators"], 1)
+        self.assertContains(response, "YouTube")
+        self.assertContains(response, "Instagram")
+        self.assertNotContains(response, "Job backlog")
         self.assertNotContains(response, "Load sample data")
+
+    def test_dashboard_lists_top_creators_by_subscribers(self):
+        response = self.client.get(reverse("campaigns:dashboard"))
+        self.assertContains(response, "Top 10 creators")
+        self.assertContains(response, self.creator.display_name)
+        self.assertContains(response, "120,000")
+        ranked = response.context["top_creators"]
+        self.assertEqual(ranked[0]["creator"].pk, self.creator.pk)
+        self.assertEqual(ranked[0]["subscribers"], 120000)
+        self.assertEqual(ranked[0]["views"], 50000)
 
 
 class StudioSampleDataTests(TestCase):
