@@ -80,6 +80,7 @@ class Campaign(models.Model):
         add("Primary market", self.primary_market)
         add("Additional markets", self.additional_markets)
         add("Creators needed", self.creators_needed)
+        add("Platforms", ", ".join(self.platform_labels()) or None)
         add("Primary niche", self.primary_niche)
         add("Secondary niche", self.secondary_niche)
         add("Content format", self.content_format)

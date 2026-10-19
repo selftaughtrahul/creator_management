@@ -538,6 +538,15 @@ button, input, textarea, select { font-family: inherit; }
 .card-grid { grid-template-columns: repeat(2, 1fr); }
 .chart-box { position: relative; height: 280px; }
 .panel h2, .platform-card h2 { font-size: 28px; margin: 0 0 4px; }
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.panel-head h2 { margin: 0; }
+.panel-head .btn-accent, .panel-head .btn-line { margin: 0; flex: none; }
 .badge-sample, .badge-live {
   display: inline-flex;
   align-items: center;

@@ -18,16 +18,22 @@
     <article class="stat"><span class="label">Followers</span><strong>{% if campaign.follower_min or campaign.follower_max %}{{ campaign.follower_min|default:"0"|intcomma }}–{{ campaign.follower_max|default:"∞" }}{% else %}Any{% endif %}</strong><em>Min engagement {% if campaign.min_engagement %}{{ campaign.min_engagement }}%{% else %}not set{% endif %}</em></article>
   </section>
   {% if campaign.requirement_rows %}
-    <section class="panel">
+    <section class="panel table-scroll">
       <h2>Campaign requirements</h2>
-      <table class="data requirements">
-        <tbody>
-          {% for label, value in campaign.requirement_rows %}
-            <tr>
+      <table class="data wide">
+        <thead>
+          <tr>
+            {% for label, value in campaign.requirement_rows %}
               <th>{{ label }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            {% for label, value in campaign.requirement_rows %}
               <td>{{ value }}</td>
-            </tr>
-          {% endfor %}
+            {% endfor %}
+          </tr>
         </tbody>
       </table>
     </section>
@@ -45,8 +51,10 @@
     {% endif %}
   </section>
   <section class="panel mt-3">
-    <h2>Creators</h2>
-    <button class="btn-accent" type="button" data-bs-toggle="offcanvas" data-bs-target="#outreachDrawer">Prepare invitations</button>
+    <div class="panel-head">
+      <h2>Creators</h2>
+      <button class="btn-accent" type="button" data-bs-toggle="offcanvas" data-bs-target="#outreachDrawer">Prepare invitations</button>
+    </div>
       <table class="data">
         <thead><tr><th></th><th>Creator</th><th>State</th><th>Followers</th><th>Engagement</th><th>Cost</th><th></th></tr></thead>
         <tbody>

@@ -7,3 +7,4 @@ devcerts/
 staticfiles/
 media/
 .pytest_cache/
+notebooks/.qdrant_taxonomy/
